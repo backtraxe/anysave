@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name" translatable="false">AnySave</string>
+    <string name="tagline">Pick, preview and keep media from any web page.</string>
+    <string name="url_hint">Paste a link</string>
+    <string name="extract">Extract</string>
+    <string name="status_ready">Ready. Paste a link and tap Extract.</string>
+    <string name="status_extracting">Extracting…</string>
+    <string name="status_no_reader">No reader for this site yet.</string>
+    <string name="status_invalid_url">Please paste a valid http(s) link.</string>
+    <string name="status_hits">%1$d response(s) captured in %2$d ms</string>
+    <string name="status_timeout">No matching response captured (timeout).</string>
+</resources>

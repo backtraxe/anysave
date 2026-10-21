@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="tagline">从任意网页里，先看、再选、再存。</string>
+    <string name="url_hint">粘贴链接</string>
+    <string name="extract">提取</string>
+    <string name="status_ready">就绪。粘贴链接后点击「提取」。</string>
+    <string name="status_extracting">正在提取…</string>
+    <string name="status_no_reader">这个站点还没有对应的 reader。</string>
+    <string name="status_invalid_url">请粘贴有效的 http(s) 链接。</string>
+    <string name="status_hits">已捕获 %1$d 条响应，用时 %2$d ms</string>
+    <string name="status_timeout">未捕获到目标响应（超时）。</string>
+</resources>
