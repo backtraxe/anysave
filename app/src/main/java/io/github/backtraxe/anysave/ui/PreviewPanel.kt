@@ -1,6 +1,7 @@
 package io.github.backtraxe.anysave.ui
 
 import android.app.Activity
+import android.graphics.Color
 import android.net.Uri
 import android.view.LayoutInflater
 import android.view.View
@@ -9,6 +10,7 @@ import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.widget.FrameLayout
 import android.widget.ImageView
+import android.widget.ProgressBar
 import android.widget.TextView
 import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.RecyclerView
@@ -16,17 +18,21 @@ import io.github.backtraxe.anysave.R
 import io.github.backtraxe.anysave.model.MediaItem
 import io.github.backtraxe.anysave.model.MediaKind
 import io.github.backtraxe.anysave.model.PostMedia
+import io.github.backtraxe.anysave.model.SaveState
 import kotlin.math.roundToInt
 
+/** Convenience alias so hosts can reference the nested interface unqualified. */
+typealias SaveActions = PreviewPanel.SaveActions
+
 /**
- * M1 preview overlay: post header, media grid with thumbnails, filtering and
- * multi-select. The panel inflates itself into [root] (the full-screen
- * `previewRoot` FrameLayout owned by the activity) and stays hidden until
- * [show] is called.
+ * Preview overlay: post header, media grid with thumbnails, filtering,
+ * multi-select and the M2 save flow (idle CTA -> progress -> result).
  *
- * The panel is the single owner of selection state so switching filters never
- * loses what the user picked. Selection is reported to the host only through
- * the UI for now; M2 will read it to start downloads.
+ * The panel inflates itself into [root] (the full-screen `previewRoot`
+ * FrameLayout owned by the activity) and stays hidden until [show] is called.
+ * Selection is owned here so switching filters never loses what the user
+ * picked; the host drives the save UI through [setSaveActions] and
+ * [renderSaveState], and must not change the save state itself.
  */
 class PreviewPanel(
     private val activity: Activity,
@@ -34,13 +40,22 @@ class PreviewPanel(
     private val onClose: () -> Unit,
 ) {
 
+    /** Host callbacks for the save flow. Implemented by the activity/service glue. */
+    interface SaveActions {
+        /** Save the selected items, in post order (never filter order). */
+        fun onSaveRequested(items: List<MediaItem>)
+
+        /** Open the system gallery at the first saved item. */
+        fun onOpenAlbum()
+    }
+
     private enum class Filter { ALL, IMAGES, VIDEOS }
 
     private val panel: View =
         LayoutInflater.from(activity).inflate(R.layout.preview_panel, root, false)
     private val content: View = panel.findViewById(R.id.previewPanelContent)
     private val topBar: View = panel.findViewById(R.id.panelTopBar)
-    private val footerRow: View = panel.findViewById(R.id.footerRow)
+    private val footerBody: View = panel.findViewById(R.id.footerBody)
     private val backButton: View = panel.findViewById(R.id.panelBack)
     private val subtitle: TextView = panel.findViewById(R.id.panelSubtitle)
     private val avatar: TextView = panel.findViewById(R.id.postAvatar)
@@ -59,9 +74,18 @@ class PreviewPanel(
     private val emptyTitle: TextView = panel.findViewById(R.id.emptyTitle)
     private val emptyBody: TextView = panel.findViewById(R.id.emptyBody)
     private val emptyAction: TextView = panel.findViewById(R.id.emptyAction)
+
     private val footer: View = panel.findViewById(R.id.panelFooter)
     private val footerCount: TextView = panel.findViewById(R.id.footerCount)
-    private val footerAction: TextView = panel.findViewById(R.id.footerAction)
+    private val footerSecondary: TextView = panel.findViewById(R.id.footerSecondary)
+    private val saveButton: TextView = panel.findViewById(R.id.saveButton)
+    private val saveProgress: ProgressBar = panel.findViewById(R.id.saveProgress)
+    private val saveRunningText: TextView = panel.findViewById(R.id.saveRunningText)
+    private val saveFinishedSummary: TextView = panel.findViewById(R.id.saveFinishedSummary)
+    private val saveFinishedFailed: TextView = panel.findViewById(R.id.saveFinishedFailed)
+    private val footerFinishedActions: View = panel.findViewById(R.id.footerFinishedActions)
+    private val saveDoneButton: TextView = panel.findViewById(R.id.saveDoneButton)
+    private val saveOpenAlbumButton: TextView = panel.findViewById(R.id.saveOpenAlbumButton)
 
     private val adapter = MediaGridAdapter(::onCardClick, ::onCardLongClick)
     private val selectedIds = LinkedHashSet<String>()
@@ -69,6 +93,9 @@ class PreviewPanel(
     private var post: PostMedia? = null
     private var filter = Filter.ALL
     private var ordinals: Map<String, Int> = emptyMap()
+
+    private var saveActions: SaveActions? = null
+    private var saveState: SaveState = SaveState.Idle
 
     /** Guards against an exit animation ending after a new [show] started. */
     private var stateToken = 0
@@ -80,11 +107,11 @@ class PreviewPanel(
         topBar.paddingRight,
         topBar.paddingBottom,
     )
-    private val footerRowBasePadding = intArrayOf(
-        footerRow.paddingLeft,
-        footerRow.paddingTop,
-        footerRow.paddingRight,
-        footerRow.paddingBottom,
+    private val footerBodyBasePadding = intArrayOf(
+        footerBody.paddingLeft,
+        footerBody.paddingTop,
+        footerBody.paddingRight,
+        footerBody.paddingBottom,
     )
 
     private val brandColor: Int = activity.getColor(R.color.brand)
@@ -106,7 +133,10 @@ class PreviewPanel(
         filterPills.forEach { (targetFilter, pill) ->
             pill.setOnClickListener { setFilter(targetFilter) }
         }
-        footerAction.setOnClickListener { toggleSelectAllVisible() }
+        footerSecondary.setOnClickListener { toggleSelectAllVisible() }
+        saveButton.setOnClickListener { onSaveClicked() }
+        saveDoneButton.setOnClickListener { dismissSaveResult() }
+        saveOpenAlbumButton.setOnClickListener { saveActions?.onOpenAlbum() }
 
         // Android 15 enforces edge-to-edge for targetSdk 35, so the overlay
         // must stay clear of the status bar and the gesture / button nav bar.
@@ -116,12 +146,33 @@ class PreviewPanel(
         }
     }
 
+    // ------------------------------------------------------------ public API
+
+    /** Host callbacks for the save flow. Call once, right after construction. */
+    fun setSaveActions(actions: SaveActions) {
+        saveActions = actions
+    }
+
+    /**
+     * Renders the save flow. The host calls this on the main thread for every
+     * state change; the panel never advances the state on its own.
+     */
+    fun renderSaveState(state: SaveState) {
+        val previous = saveState
+        saveState = state
+        renderFooter()
+        if (state is SaveState.Finished && previous !is SaveState.Finished && isShowing) {
+            panel.announceForAccessibility(finishedAnnouncement(state))
+        }
+    }
+
     /** Binds [post] and plays the entry transition. Safe to call repeatedly. */
     fun show(post: PostMedia) {
         this.post = post
         selectedIds.clear()
         ordinals = buildOrdinals(post)
         filter = Filter.ALL
+        saveState = SaveState.Idle
 
         bindHeader(post)
         val hasItems = post.items.isNotEmpty()
@@ -346,7 +397,7 @@ class PreviewPanel(
             true
         }
         adapter.updateSelection(selectedIds, animateForId = if (nowSelected) item.id else null)
-        renderFooter()
+        onSelectionChanged()
     }
 
     private fun onCardLongClick(item: MediaItem) {
@@ -364,24 +415,140 @@ class PreviewPanel(
             selectedIds.addAll(visible.map { it.id })
         }
         adapter.updateSelection(selectedIds)
+        onSelectionChanged()
+    }
+
+    /**
+     * Changing what is selected after a run finished starts a fresh save
+     * session (the result footer belongs to the previous selection).
+     */
+    private fun onSelectionChanged() {
+        if (saveState is SaveState.Finished) {
+            saveState = SaveState.Idle
+        }
+        renderFooter()
+    }
+
+    // -------------------------------------------------------------- save flow
+
+    private fun onSaveClicked() {
+        // Ignore taps while a run is in flight or while the result is shown.
+        if (saveState !is SaveState.Idle) return
+        val post = this.post ?: return
+        if (selectedIds.isEmpty()) return
+        val selected = post.items.filter { it.id in selectedIds }
+        if (selected.isEmpty()) return
+        saveActions?.onSaveRequested(selected)
+    }
+
+    private fun dismissSaveResult() {
+        if (saveState is SaveState.Idle) return
+        saveState = SaveState.Idle
         renderFooter()
     }
 
     private fun renderFooter() {
         val post = this.post ?: return
-        footerCount.text = activity.getString(
-            R.string.preview_selected,
-            selectedIds.size,
-            post.items.size,
-        )
+        val total = post.items.size
+        val selectedCount = selectedIds.size
         val visible = visibleItems()
         val allVisibleSelected = visible.isNotEmpty() && visible.all { it.id in selectedIds }
-        footerAction.setText(
-            if (allVisibleSelected) R.string.preview_clear_selection else R.string.preview_select_all,
+        val state = saveState
+
+        val idle = state is SaveState.Idle
+        val running = state is SaveState.Running
+        val finished = state is SaveState.Finished
+
+        footerCount.visibility = if (idle) View.VISIBLE else View.GONE
+        saveRunningText.visibility = if (running) View.VISIBLE else View.GONE
+        saveFinishedSummary.visibility = if (finished) View.VISIBLE else View.GONE
+        saveProgress.visibility = if (running) View.VISIBLE else View.GONE
+        footerFinishedActions.visibility = if (finished) View.VISIBLE else View.GONE
+        footerSecondary.visibility = if (idle) View.VISIBLE else View.GONE
+        saveButton.visibility = if (idle || running) View.VISIBLE else View.GONE
+        saveFinishedFailed.visibility = View.GONE
+        saveOpenAlbumButton.visibility = View.GONE
+
+        if (state is SaveState.Idle) {
+            footerCount.text = activity.getString(R.string.preview_selected, selectedCount, total)
+            footerSecondary.text = activity.getString(
+                if (allVisibleSelected) {
+                    R.string.preview_clear_selection
+                } else {
+                    R.string.preview_select_all
+                },
+            )
+            // Nothing visible in the current filter -> nothing to select.
+            footerSecondary.isEnabled = visible.isNotEmpty()
+            footerSecondary.alpha = if (visible.isNotEmpty()) 1f else 0.4f
+            bindPrimarySaveButton(
+                enabled = selectedCount > 0,
+                label = activity.getString(R.string.preview_save_button, selectedCount),
+            )
+        }
+
+        if (state is SaveState.Running) {
+            saveProgress.progress = (state.progress * 100f).roundToInt().coerceIn(0, 100)
+            saveRunningText.text = activity.getString(
+                R.string.preview_saving,
+                state.finished,
+                state.total,
+            )
+            bindPrimarySaveButton(
+                enabled = false,
+                label = activity.getString(R.string.preview_saving_short),
+            )
+        }
+
+        if (state is SaveState.Finished) {
+            val album = state.albumName.ifBlank { activity.getString(R.string.app_name) }
+            saveFinishedSummary.text = activity.resources.getQuantityString(
+                R.plurals.preview_saved_summary,
+                state.saved,
+                state.saved,
+                album,
+            )
+            if (state.failed > 0) {
+                saveFinishedFailed.visibility = View.VISIBLE
+                saveFinishedFailed.text = activity.resources.getQuantityString(
+                    R.plurals.preview_save_failed,
+                    state.failed,
+                    state.failed,
+                )
+            }
+            if (!state.firstUri.isNullOrBlank()) {
+                saveOpenAlbumButton.visibility = View.VISIBLE
+            }
+        }
+    }
+
+    private fun bindPrimarySaveButton(enabled: Boolean, label: String) {
+        saveButton.isEnabled = enabled
+        saveButton.text = label
+        saveButton.setTextColor(
+            if (enabled) {
+                Color.WHITE
+            } else {
+                activity.getColor(R.color.preview_placeholder_icon)
+            },
         )
-        // Nothing visible in the current filter -> nothing to select.
-        footerAction.isEnabled = visible.isNotEmpty()
-        footerAction.alpha = if (visible.isNotEmpty()) 1f else 0.4f
+    }
+
+    private fun finishedAnnouncement(state: SaveState.Finished): String {
+        val album = state.albumName.ifBlank { activity.getString(R.string.app_name) }
+        val summary = activity.resources.getQuantityString(
+            R.plurals.preview_saved_summary,
+            state.saved,
+            state.saved,
+            album,
+        )
+        if (state.failed <= 0) return summary
+        val failed = activity.resources.getQuantityString(
+            R.plurals.preview_save_failed,
+            state.failed,
+            state.failed,
+        )
+        return summary + activity.getString(R.string.preview_announce_separator) + failed
     }
 
     // --------------------------------------------------------------- helpers
@@ -406,12 +573,12 @@ class PreviewPanel(
                 topBarBasePadding[3],
             )
         }
-        val wantedBottom = footerRowBasePadding[3] + insetBottom
-        if (footerRow.paddingBottom != wantedBottom) {
-            footerRow.setPadding(
-                footerRowBasePadding[0],
-                footerRowBasePadding[1],
-                footerRowBasePadding[2],
+        val wantedBottom = footerBodyBasePadding[3] + insetBottom
+        if (footerBody.paddingBottom != wantedBottom) {
+            footerBody.setPadding(
+                footerBodyBasePadding[0],
+                footerBodyBasePadding[1],
+                footerBodyBasePadding[2],
                 wantedBottom,
             )
         }

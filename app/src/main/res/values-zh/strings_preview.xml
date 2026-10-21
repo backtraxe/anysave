@@ -38,6 +38,20 @@
     <string name="preview_empty_post_body">这个作品没有我们可以预览的媒体。</string>
     <string name="preview_empty_show_all">查看全部</string>
 
+    <!-- M2 保存流程 -->
+    <string name="preview_save_button">保存 %1$d 项</string>
+    <string name="preview_saving">正在保存 %1$d / %2$d</string>
+    <string name="preview_saving_short">保存中…</string>
+    <plurals name="preview_saved_summary">
+        <item quantity="other">已保存 %1$d 项到 %2$s</item>
+    </plurals>
+    <plurals name="preview_save_failed">
+        <item quantity="other">%1$d 项保存失败</item>
+    </plurals>
+    <string name="preview_open_album">查看相册</string>
+    <string name="preview_done">完成</string>
+    <string name="preview_announce_separator">，</string>
+
     <!-- 全屏预览 -->
     <string name="preview_viewer_close">关闭预览</string>
     <string name="preview_viewer_counter">%1$d / %2$d</string>

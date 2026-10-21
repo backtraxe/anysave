@@ -2,12 +2,14 @@ package io.github.backtraxe.anysave.ui
 
 import android.app.Activity
 import android.os.Bundle
+import android.util.Log
 import android.view.WindowManager
 import android.widget.FrameLayout
 import io.github.backtraxe.anysave.R
 import io.github.backtraxe.anysave.model.MediaItem
 import io.github.backtraxe.anysave.model.MediaKind
 import io.github.backtraxe.anysave.model.PostMedia
+import io.github.backtraxe.anysave.model.SaveState
 
 /**
  * DEBUG-ONLY visual harness for [PreviewPanel] (debug source set, never shipped).
@@ -18,6 +20,12 @@ import io.github.backtraxe.anysave.model.PostMedia
  *   adb shell am start -n io.github.backtraxe.anysave/.ui.PreviewDemoActivity --es state images-only
  *   adb shell am start -n io.github.backtraxe.anysave/.ui.PreviewDemoActivity --es state videos-only
  *   adb shell am start -n io.github.backtraxe.anysave/.ui.PreviewDemoActivity --es state many
+ *
+ * Save-flow states (orthogonal to the post state above):
+ *   adb shell am start -n io.github.backtraxe.anysave/.ui.PreviewDemoActivity --es save idle
+ *   adb shell am start -n io.github.backtraxe.anysave/.ui.PreviewDemoActivity --es save running
+ *   adb shell am start -n io.github.backtraxe.anysave/.ui.PreviewDemoActivity --es save finished
+ *   adb shell am start -n io.github.backtraxe.anysave/.ui.PreviewDemoActivity --es save failed
  */
 class PreviewDemoActivity : Activity() {
 
@@ -29,7 +37,46 @@ class PreviewDemoActivity : Activity() {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
 
         val root = findViewById<FrameLayout>(R.id.previewRoot)
-        panel = PreviewPanel(this, root) { finish() }.also { it.show(demoPost(intent?.getStringExtra(EXTRA_STATE))) }
+        val post = demoPost(intent?.getStringExtra(EXTRA_STATE))
+        panel = PreviewPanel(this, root) { finish() }.also { preview ->
+            preview.setSaveActions(
+                object : PreviewPanel.SaveActions {
+                    override fun onSaveRequested(items: List<MediaItem>) {
+                        Log.i(TAG, "demo onSaveRequested ids=" + items.joinToString(",") { it.id + "#" + it.index })
+                    }
+
+                    override fun onOpenAlbum() {
+                        Log.i(TAG, "demo onOpenAlbum")
+                    }
+                },
+            )
+            preview.show(post)
+            preview.renderSaveState(demoSaveState(intent?.getStringExtra(EXTRA_SAVE), post))
+        }
+    }
+
+    private fun demoSaveState(save: String?, post: PostMedia): SaveState {
+        val total = post.items.size.coerceAtLeast(1)
+        return when (save) {
+            SAVE_RUNNING -> SaveState.Running(total = total, done = 7, failed = 1)
+            SAVE_FINISHED -> SaveState.Finished(
+                total = total,
+                saved = total,
+                failed = 0,
+                albumName = "AnySave",
+                firstUri = "content://media/external/images/media/42",
+            )
+
+            SAVE_FAILED -> SaveState.Finished(
+                total = total,
+                saved = (total - 2).coerceAtLeast(0),
+                failed = 2,
+                albumName = "AnySave",
+                firstUri = "content://media/external/images/media/42",
+            )
+
+            else -> SaveState.Idle
+        }
     }
 
     private fun demoPost(state: String?): PostMedia {
@@ -118,7 +165,12 @@ class PreviewDemoActivity : Activity() {
     }
 
     private companion object {
+        private const val TAG = "PreviewDemo"
         private const val EXTRA_STATE = "state"
+        private const val EXTRA_SAVE = "save"
+        private const val SAVE_RUNNING = "running"
+        private const val SAVE_FINISHED = "finished"
+        private const val SAVE_FAILED = "failed"
         private const val STATE_EMPTY = "empty"
         private const val STATE_IMAGES_ONLY = "images-only"
         private const val STATE_VIDEOS_ONLY = "videos-only"

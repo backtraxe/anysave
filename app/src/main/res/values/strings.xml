@@ -11,4 +11,15 @@
     <string name="status_parsed">Parsed %1$d item(s) in %2$d ms</string>
     <string name="status_parse_failed">Captured %1$d response(s) but found no media in them. Open a post page (video or note) and try again.</string>
     <string name="status_timeout">No matching response captured (timeout).</string>
+    <string name="status_saving">Saving %1$d item(s) to the gallery…</string>
+    <string name="status_saved">%1$d item(s) saved to the AnySave album</string>
+    <string name="album_open_failed">No gallery app available.</string>
+
+    <string name="notification_channel_saves">Saving media</string>
+    <string name="notification_channel_saves_desc">Progress while media is saved to your gallery.</string>
+    <string name="notification_saving_title">Saving to AnySave</string>
+    <string name="notification_saving_text">%1$d / %2$d saved</string>
+    <string name="notification_saved_title">Saved to AnySave</string>
+    <string name="notification_saved_text">%1$d item(s) added to the AnySave album</string>
+    <string name="notification_saved_partial">%1$d saved, %2$d failed</string>
 </resources>

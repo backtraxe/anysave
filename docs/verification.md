@@ -4,7 +4,10 @@ M0 的设计建立在一个假设上：**在页面上下文里，站点自己的
 请求签名；应用只需捕获响应，不需要自己实现签名。**
 
 M1 增加了一个前提：**图片笔记页不发 detail 请求，但作品数据已经内嵌在页面里；
-应用可以只读地取用这份数据。** 下面分别记录验证过程与数据。
+应用可以只读地取用这份数据。**
+
+M2 又增加了一个前提：**页面拿到的媒体 CDN 直链可以不依赖 Cookie 直接下载。**
+下面分别记录验证过程与数据。
 
 ## 实验 A：桌面 Chrome 155（Playwright 驱动）
 
@@ -132,6 +135,48 @@ I AnySave : parsed aweme=7630244974127660645 author=TANG images=15 videos=0
 
 结论：M1 的「解析 → 预览网格 → 多选 / 筛选」链路在应用内成立。
 
+## 实验 G：媒体 CDN 直链能否不带 Cookie 下载
+
+M2 的保存只消费页面已经收到的 CDN 直链。先验证这些直链本身是否还需要会话凭据：
+
+| 类型 | 主机 | 状态 | 内容类型 | 字节数 | 其他 |
+|---|---|---|---|---|---|
+| 图片 1 | `p9-pc-sign.douyinpic.com` | 200 | image/jpeg | 1,145,320（与 content-length 一致） | JPEG SOI，2160×3240 |
+| 图片 2 | `p3-pc-sign.douyinpic.com` | 200 | image/jpeg | 1,309,473 | 2160×3840 |
+| 视频 | `v26-web.douyinvod.com` | 200 | video/mp4 | 1,560,178 | `ftyp isom`，1080×1920 |
+
+请求只带 `Referer: https://www.douyin.com/` 与移动 UA，**没有 Cookie**，也没有重定向。
+图片 CDN 甚至对 Referer / UA 都不敏感（去掉仍是 200、字节数相同）。
+
+结论：保存不需要 Cookie 导出，也不需要签名；CDN 直链自带时效签名即可。
+
+## 实验 H：应用内保存端到端（M2）
+
+模拟器 Android 15 / WebView 124，登录 Cookie 通过 DevTools 协议注入 WebView，
+在应用内提取 → 勾选 → 点「保存」。APK 0.3.0。
+
+| 场景 | 结果 |
+|---|---|
+| 图文保存 3 张 | `save start: 3 item(s)` → 3 条 `saved` → `save finished: 3 saved, 0 failed`；约 300 ms |
+| 文件与相册 | `Pictures/AnySave/douyin_7630244974127660645_0{1,2,3}.jpg`，大小 1,145,320 / 1,309,473 / 648,842 B |
+| MediaStore 校验 | 3 行 `relative_path=Pictures/AnySave/`、`is_pending=0`、`mime=image/jpeg`，尺寸 2160×3240 / 2160×3840 / 2160×3840，与解析结果一致 |
+| 视频保存 1 条 | 1 行 `Movies/AnySave/douyin_7691296880559540623_video.mp4`，1,560,178 B、1080×1920、`video/mp4`、`is_pending=0`，与 CDN content-length 一致 |
+| 残留检查 | 无 `is_pending=1` 行，无半截文件，无 `download failed` / `insert failed` 日志 |
+| 通知 | 渠道 `anysave_saves`：`Saving to AnySave` / `0 / 15 saved`（15 图补充跑时抓到的进度）→ `Saved to AnySave` / `3 item(s) added to the AnySave album`，完成后留在通知栏 |
+| 失败/崩溃 | 无崩溃、无权限或服务错误 |
+
+独立复跑（Lead）：同一构建上再保存 2 张，MediaStore 行数 3→5、`pending=[]`，
+两次都成功；重复文件名由 MediaStore 自动加 `(1)` 后缀（复跑后已清理）。
+
+## 实验 I：保存期间的 UI 状态
+
+| 状态 | 现象 |
+|---|---|
+| Idle | 页脚 `Selected 3 / 15` + `Save 3`（0 选中时禁用） |
+| Running | 顶部 4dp 品牌色进度条 + `Saving 1 / 3`，主按钮禁用为 `Saving…`；网格仍可滚动，重复点保存不会再起任务 |
+| Finished | `Saved 3 items to AnySave` + `View album`；`Done` 或变更选择回到 Idle；结果通过无障碍 live region 播报 |
+| 返回网页 | 面板收起、WebView 恢复；保存任务不受影响，通知独立推进 |
+
 ## 实现结论
 
 1. 系统 WebView 124 也能跑通，不依赖新版浏览器特性。
@@ -146,6 +191,11 @@ I AnySave : parsed aweme=7630244974127660645 author=TANG images=15 videos=0
 6. 图文笔记必须走内嵌 SSR 数据：网络路径对这类页面永远超时；而内嵌数据是站点的
    自渲染数据，读取它不违反「不重放请求」的原则。
 7. 缩略图 CDN 请求带 `Referer: https://www.douyin.com/` 与移动 UA，15/15 加载成功。
+8. 媒体 CDN 直链不需要 Cookie：保存环节只做「按页面收到的地址 GET」，不需要重放
+   detail 接口，也不需要重新签名。
+9. 写入相册用 MediaStore + IS_PENDING：写完才发布，失败即删除，实测无残留 pending 行；
+   图片与视频按 `Pictures` / `Movies` 分集合，兼容 API 29+（26–28 走 DATA 分支）。
+10. 保存状态由前台服务写入、Activity 只渲染：保存期间返回网页/重建界面不会丢进度。
 
 ## 未验证项
 
@@ -153,4 +203,6 @@ I AnySave : parsed aweme=7630244974127660645 author=TANG images=15 videos=0
 - 其它图文笔记的 SSR 形态是否一致（本次只取了一个 15 图笔记 + 18 个候选 id）
 - B 站高清：移动播放器的 playurl 请求在页面级 hook 中不可见，需要专用库兜底
 - 小红书笔记页：需要带 `xsec_token` 的真实分享链接才能测试
-- 下载、相册写入、Telegram 上传（M2 / M3）
+- Telegram 上传（M3）
+- API 26–28 的 DATA 路径分支（模拟器为 API 35，未在旧设备验证）
+- 保存取消 / 断点续传（M2 明确不做）

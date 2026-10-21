@@ -28,4 +28,10 @@
 
     <!-- Tinted shadows keep depth warm instead of a gray haze. -->
     <color name="preview_shadow_tint">#33C98B74</color>
+
+    <!-- M2 save flow: progress track, pressed brand, and the one semantic
+         (failure) color in the panel. -->
+    <color name="preview_progress_track">#F0E7E2</color>
+    <color name="preview_brand_pressed">#E64E2C</color>
+    <color name="preview_danger">#A8402C</color>
 </resources>

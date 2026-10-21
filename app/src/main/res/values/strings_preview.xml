@@ -39,6 +39,22 @@
     <string name="preview_empty_post_body">This post does not expose any media we can preview.</string>
     <string name="preview_empty_show_all">Show all</string>
 
+    <!-- M2 save flow -->
+    <string name="preview_save_button">Save %1$d</string>
+    <string name="preview_saving">Saving %1$d / %2$d</string>
+    <string name="preview_saving_short">Saving…</string>
+    <plurals name="preview_saved_summary">
+        <item quantity="one">Saved %1$d item to %2$s</item>
+        <item quantity="other">Saved %1$d items to %2$s</item>
+    </plurals>
+    <plurals name="preview_save_failed">
+        <item quantity="one">%1$d item could not be saved</item>
+        <item quantity="other">%1$d items could not be saved</item>
+    </plurals>
+    <string name="preview_open_album">View album</string>
+    <string name="preview_done">Done</string>
+    <string name="preview_announce_separator">". "</string>
+
     <!-- Full-screen viewer -->
     <string name="preview_viewer_close">Close preview</string>
     <string name="preview_viewer_counter">%1$d / %2$d</string>
