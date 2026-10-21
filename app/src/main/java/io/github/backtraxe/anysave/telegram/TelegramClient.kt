@@ -1,0 +1,211 @@
+package io.github.backtraxe.anysave.telegram
+
+import android.util.Log
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import java.net.URLEncoder
+
+/**
+ * Thin Bot API client (no third-party HTTP library).
+ *
+ * Only three operations are needed by the app: validate the bot, send a test
+ * message, and upload the saved media as albums. The token is never logged; it
+ * only appears inside the request URL.
+ */
+class TelegramClient(private val baseUrl: String) {
+
+    data class BotInfo(val id: Long, val username: String)
+
+    data class UploadAttachment(
+        val fileName: String,
+        val mimeType: String,
+        val bytes: ByteArray,
+        val isVideo: Boolean,
+    ) {
+        fun describe(): TelegramProtocol.Attachment =
+            TelegramProtocol.Attachment(
+                fileName = fileName,
+                mimeType = mimeType,
+                bytes = bytes.size,
+                isVideo = isVideo,
+            )
+    }
+
+    data class UploadSummary(
+        val uploaded: Int,
+        val failed: Int,
+        val lastError: String?,
+    ) {
+        val ok: Boolean get() = failed == 0 && uploaded > 0
+    }
+
+    fun getMe(token: String): Result<BotInfo> = runCatching {
+        val response = post(token, "getMe", formBody(emptyList()), null)
+        val result = response.optJSONObject("result")
+            ?: throw TelegramApiException(response.optString("description", "empty getMe result"))
+        BotInfo(
+            id = result.optLong("id"),
+            username = result.optString("username").ifBlank { result.optString("first_name") },
+        )
+    }
+
+    fun sendMessage(token: String, chatId: String, text: String): Result<Unit> = runCatching {
+        post(
+            token,
+            "sendMessage",
+            formBody(listOf("chat_id" to chatId, "text" to text)),
+            null,
+        )
+        Unit
+    }
+
+    /**
+     * Uploads [attachments] as Telegram albums. Groups are sent sequentially so
+     * the caller can show real progress; a failing group is counted and the next
+     * one is still attempted.
+     */
+    fun uploadMedia(
+        token: String,
+        chatId: String,
+        caption: String,
+        attachments: List<UploadAttachment>,
+        onProgress: (uploaded: Int, failed: Int) -> Unit = { _, _ -> },
+    ): UploadSummary {
+        val valid = attachments.filter { TelegramProtocol.isWithinLimits(it.describe()) }
+        val oversized = attachments.size - valid.size
+        if (oversized > 0) {
+            Log.w(TAG, "telegram: skipping $oversized attachment(s) over the Bot API size limit")
+        }
+        if (valid.isEmpty()) {
+            return UploadSummary(uploaded = 0, failed = oversized, lastError = "size limit")
+        }
+
+        val groups = valid.chunked(TelegramProtocol.MAX_ITEMS_PER_GROUP)
+        var uploaded = 0
+        var failed = oversized
+        var lastError: String? = if (oversized > 0) "size limit" else null
+        var firstItemOverall = true
+
+        groups.forEachIndexed { index, group ->
+            val groupCaption = if (firstItemOverall && caption.isNotBlank()) caption else ""
+            try {
+                if (group.size == 1) {
+                    sendSingle(token, chatId, group.single(), groupCaption)
+                } else {
+                    sendAlbum(token, chatId, group, groupCaption)
+                }
+                uploaded += group.size
+                Log.i(TAG, "telegram: group ${index + 1}/${groups.size} sent (${group.size} item(s))")
+            } catch (t: Throwable) {
+                failed += group.size
+                lastError = t.message ?: t.javaClass.simpleName
+                Log.w(TAG, "telegram: group ${index + 1}/${groups.size} failed: $lastError")
+            }
+            firstItemOverall = false
+            onProgress(uploaded, failed)
+        }
+        return UploadSummary(uploaded = uploaded, failed = failed, lastError = lastError)
+    }
+
+    private fun sendSingle(
+        token: String,
+        chatId: String,
+        attachment: UploadAttachment,
+        caption: String,
+    ) {
+        val (method, field) = TelegramProtocol.singleSend(attachment.describe())
+        val parts = ArrayList<MultipartBody.Part>(4)
+        parts += MultipartBody.Part(name = "chat_id", value = chatId)
+        if (caption.isNotBlank()) {
+            parts += MultipartBody.Part(name = "caption", value = caption)
+        }
+        parts += MultipartBody.Part(
+            name = field,
+            bytes = attachment.bytes,
+            fileName = attachment.fileName,
+            contentType = attachment.mimeType,
+        )
+        val boundary = MultipartBody.boundary()
+        val body = MultipartBody.build(boundary, parts)
+        post(token, method, body, "multipart/form-data; boundary=$boundary")
+    }
+
+    private fun sendAlbum(
+        token: String,
+        chatId: String,
+        group: List<UploadAttachment>,
+        caption: String,
+    ) {
+        val boundary = MultipartBody.boundary()
+        val parts = ArrayList<MultipartBody.Part>(group.size + 2)
+        parts += MultipartBody.Part(name = "chat_id", value = chatId)
+        parts += MultipartBody.Part(
+            name = "media",
+            value = TelegramProtocol.mediaJson(group.map { it.describe() }, caption),
+        )
+        group.forEachIndexed { index, attachment ->
+            parts += MultipartBody.Part(
+                name = "file$index",
+                bytes = attachment.bytes,
+                fileName = attachment.fileName,
+                contentType = attachment.mimeType,
+            )
+        }
+        val body = MultipartBody.build(boundary, parts)
+        post(token, "sendMediaGroup", body, "multipart/form-data; boundary=$boundary")
+    }
+
+    /**
+     * POSTs [body] to `/bot<token>/<method>` and returns the parsed response,
+     * throwing [TelegramApiException] when the Bot API reports `ok: false`.
+     */
+    private fun post(
+        token: String,
+        method: String,
+        body: ByteArray,
+        contentType: String?,
+    ): JSONObject {
+        val url = URL("$baseUrl/bot$token/$method")
+        val connection = (url.openConnection() as HttpURLConnection).apply {
+            requestMethod = "POST"
+            connectTimeout = CONNECT_TIMEOUT_MS
+            readTimeout = READ_TIMEOUT_MS
+            doOutput = true
+            setFixedLengthStreamingMode(body.size)
+            if (contentType != null) {
+                setRequestProperty("Content-Type", contentType)
+            }
+            setRequestProperty("Accept", "application/json")
+        }
+        try {
+            connection.outputStream.use { it.write(body) }
+            val status = connection.responseCode
+            val stream = if (status in 200..299) connection.inputStream else connection.errorStream
+            val text = stream?.bufferedReader()?.use { it.readText() }.orEmpty()
+            val json = if (text.isBlank()) JSONObject() else JSONObject(text)
+            if (!json.optBoolean("ok", false)) {
+                val description = json.optString("description").ifBlank { "HTTP $status" }
+                throw TelegramApiException(description)
+            }
+            return json
+        } finally {
+            connection.disconnect()
+        }
+    }
+
+    private fun formBody(fields: List<Pair<String, String>>): ByteArray {
+        if (fields.isEmpty()) return ByteArray(0)
+        return fields.joinToString("&") { (key, value) ->
+            "${URLEncoder.encode(key, "UTF-8")}=${URLEncoder.encode(value, "UTF-8")}"
+        }.toByteArray(Charsets.UTF_8)
+    }
+
+    class TelegramApiException(message: String) : IllegalStateException(message)
+
+    private companion object {
+        private const val TAG = "AnySave"
+        private const val CONNECT_TIMEOUT_MS = 15_000
+        private const val READ_TIMEOUT_MS = 120_000
+    }
+}

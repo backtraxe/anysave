@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Telegram 设置</string>
+    <string name="settings_back_content_description">返回</string>
+    <string name="settings_token_label">机器人 Token</string>
+    <string name="settings_token_hint">123456789:AAH…</string>
+    <string name="settings_chat_label">会话 ID</string>
+    <string name="settings_chat_hint">-1001234567890</string>
+    <string name="settings_auto_upload_label">保存后自动上传</string>
+    <string name="settings_auto_upload_hint">把每一张保存的媒体发送到上面的会话。</string>
+    <string name="settings_help">在 Telegram 里用 @BotFather 创建机器人并粘贴 Token；给机器人发 /start，再打开 api.telegram.org/bot&lt;token&gt;/getUpdates，把 message.chat.id 填到会话 ID（频道填 @频道名）。Token 只保存在本机。</string>
+    <string name="settings_test">测试连接</string>
+    <string name="settings_save">保存</string>
+    <string name="settings_test_ok">连接成功：%1$s</string>
+    <string name="settings_test_failed">测试失败：%1$s</string>
+    <string name="settings_invalid_token">Token 格式不对，应类似 123456789:AAH…</string>
+    <string name="settings_saved">已保存</string>
+</resources>

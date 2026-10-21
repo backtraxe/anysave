@@ -26,6 +26,9 @@ import io.github.backtraxe.anysave.model.SaveState
  *   adb shell am start -n io.github.backtraxe.anysave/.ui.PreviewDemoActivity --es save running
  *   adb shell am start -n io.github.backtraxe.anysave/.ui.PreviewDemoActivity --es save finished
  *   adb shell am start -n io.github.backtraxe.anysave/.ui.PreviewDemoActivity --es save failed
+ *   adb shell am start -n io.github.backtraxe.anysave/.ui.PreviewDemoActivity --es save uploading
+ *   adb shell am start -n io.github.backtraxe.anysave/.ui.PreviewDemoActivity --es save finished-telegram
+ *   adb shell am start -n io.github.backtraxe.anysave/.ui.PreviewDemoActivity --es save finished-telegram-failed
  */
 class PreviewDemoActivity : Activity() {
 
@@ -59,6 +62,7 @@ class PreviewDemoActivity : Activity() {
         val total = post.items.size.coerceAtLeast(1)
         return when (save) {
             SAVE_RUNNING -> SaveState.Running(total = total, done = 7, failed = 1)
+            SAVE_UPLOADING -> SaveState.Uploading(total = 3, uploaded = 2, failed = 0)
             SAVE_FINISHED -> SaveState.Finished(
                 total = total,
                 saved = total,
@@ -73,6 +77,26 @@ class PreviewDemoActivity : Activity() {
                 failed = 2,
                 albumName = "AnySave",
                 firstUri = "content://media/external/images/media/42",
+            )
+
+            SAVE_FINISHED_TELEGRAM -> SaveState.Finished(
+                total = total,
+                saved = total,
+                failed = 0,
+                albumName = "AnySave",
+                firstUri = "content://media/external/images/media/42",
+                uploaded = total,
+                uploadFailed = 0,
+            )
+
+            SAVE_FINISHED_TELEGRAM_FAILED -> SaveState.Finished(
+                total = total,
+                saved = total,
+                failed = 0,
+                albumName = "AnySave",
+                firstUri = "content://media/external/images/media/42",
+                uploaded = (total - 2).coerceAtLeast(0),
+                uploadFailed = 2,
             )
 
             else -> SaveState.Idle
@@ -171,6 +195,9 @@ class PreviewDemoActivity : Activity() {
         private const val SAVE_RUNNING = "running"
         private const val SAVE_FINISHED = "finished"
         private const val SAVE_FAILED = "failed"
+        private const val SAVE_UPLOADING = "uploading"
+        private const val SAVE_FINISHED_TELEGRAM = "finished-telegram"
+        private const val SAVE_FINISHED_TELEGRAM_FAILED = "finished-telegram-failed"
         private const val STATE_EMPTY = "empty"
         private const val STATE_IMAGES_ONLY = "images-only"
         private const val STATE_VIDEOS_ONLY = "videos-only"

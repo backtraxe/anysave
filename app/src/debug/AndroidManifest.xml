@@ -1,12 +1,28 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- Debug-only harness for the M1 preview panel. Never part of release builds. -->
-    <application>
+    <!--
+      Debug-only harnesses and test hooks. Never part of release builds.
+
+      Cleartext HTTP is enabled only in debug so the Telegram uploader can be
+      pointed at a local mock Bot API server through the `api_base` preference.
+      Release keeps android:usesCleartextTraffic="false" from the main manifest.
+    -->
+    <application
+        android:usesCleartextTraffic="true"
+        tools:replace="android:usesCleartextTraffic">
+
         <activity
             android:name="io.github.backtraxe.anysave.ui.PreviewDemoActivity"
             android:exported="true"
             android:label="AnySave preview demo"
+            android:theme="@style/Theme.AnySave" />
+
+        <activity
+            android:name="io.github.backtraxe.anysave.ui.SettingsDemoActivity"
+            android:exported="true"
+            android:label="AnySave settings demo"
             android:theme="@style/Theme.AnySave" />
     </application>
 </manifest>

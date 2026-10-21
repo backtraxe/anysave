@@ -26,7 +26,8 @@ typealias SaveActions = PreviewPanel.SaveActions
 
 /**
  * Preview overlay: post header, media grid with thumbnails, filtering,
- * multi-select and the M2 save flow (idle CTA -> progress -> result).
+ * multi-select and the M2/M3 save flow (idle CTA -> gallery progress ->
+ * optional Telegram upload -> result).
  *
  * The panel inflates itself into [root] (the full-screen `previewRoot`
  * FrameLayout owned by the activity) and stays hidden until [show] is called.
@@ -83,6 +84,8 @@ class PreviewPanel(
     private val saveRunningText: TextView = panel.findViewById(R.id.saveRunningText)
     private val saveFinishedSummary: TextView = panel.findViewById(R.id.saveFinishedSummary)
     private val saveFinishedFailed: TextView = panel.findViewById(R.id.saveFinishedFailed)
+    private val telegramUploadedText: TextView = panel.findViewById(R.id.telegramUploadedText)
+    private val telegramUploadFailedText: TextView = panel.findViewById(R.id.telegramUploadFailedText)
     private val footerFinishedActions: View = panel.findViewById(R.id.footerFinishedActions)
     private val saveDoneButton: TextView = panel.findViewById(R.id.saveDoneButton)
     private val saveOpenAlbumButton: TextView = panel.findViewById(R.id.saveOpenAlbumButton)
@@ -456,18 +459,22 @@ class PreviewPanel(
         val state = saveState
 
         val idle = state is SaveState.Idle
-        val running = state is SaveState.Running
+        // Downloading to the gallery and uploading to Telegram are both busy
+        // states: progress edge + status line + disabled primary.
+        val busy = state is SaveState.Running || state is SaveState.Uploading
         val finished = state is SaveState.Finished
 
         footerCount.visibility = if (idle) View.VISIBLE else View.GONE
-        saveRunningText.visibility = if (running) View.VISIBLE else View.GONE
+        saveRunningText.visibility = if (busy) View.VISIBLE else View.GONE
         saveFinishedSummary.visibility = if (finished) View.VISIBLE else View.GONE
-        saveProgress.visibility = if (running) View.VISIBLE else View.GONE
+        saveProgress.visibility = if (busy) View.VISIBLE else View.GONE
         footerFinishedActions.visibility = if (finished) View.VISIBLE else View.GONE
         footerSecondary.visibility = if (idle) View.VISIBLE else View.GONE
-        saveButton.visibility = if (idle || running) View.VISIBLE else View.GONE
+        saveButton.visibility = if (idle || busy) View.VISIBLE else View.GONE
         saveFinishedFailed.visibility = View.GONE
         saveOpenAlbumButton.visibility = View.GONE
+        telegramUploadedText.visibility = View.GONE
+        telegramUploadFailedText.visibility = View.GONE
 
         if (state is SaveState.Idle) {
             footerCount.text = activity.getString(R.string.preview_selected, selectedCount, total)
@@ -500,6 +507,19 @@ class PreviewPanel(
             )
         }
 
+        if (state is SaveState.Uploading) {
+            saveProgress.progress = (state.progress * 100f).roundToInt().coerceIn(0, 100)
+            saveRunningText.text = activity.getString(
+                R.string.preview_uploading,
+                state.finished,
+                state.total,
+            )
+            bindPrimarySaveButton(
+                enabled = false,
+                label = activity.getString(R.string.preview_uploading_short),
+            )
+        }
+
         if (state is SaveState.Finished) {
             val album = state.albumName.ifBlank { activity.getString(R.string.app_name) }
             saveFinishedSummary.text = activity.resources.getQuantityString(
@@ -514,6 +534,21 @@ class PreviewPanel(
                     R.plurals.preview_save_failed,
                     state.failed,
                     state.failed,
+                )
+            }
+            if (state.uploaded > 0) {
+                telegramUploadedText.visibility = View.VISIBLE
+                telegramUploadedText.text = activity.resources.getQuantityString(
+                    R.plurals.preview_uploaded,
+                    state.uploaded,
+                    state.uploaded,
+                )
+            }
+            if (state.uploadFailed > 0) {
+                telegramUploadFailedText.visibility = View.VISIBLE
+                telegramUploadFailedText.text = activity.getString(
+                    R.string.preview_upload_failed,
+                    state.uploadFailed,
                 )
             }
             if (!state.firstUri.isNullOrBlank()) {
@@ -536,19 +571,32 @@ class PreviewPanel(
 
     private fun finishedAnnouncement(state: SaveState.Finished): String {
         val album = state.albumName.ifBlank { activity.getString(R.string.app_name) }
-        val summary = activity.resources.getQuantityString(
+        val separator = activity.getString(R.string.preview_announce_separator)
+        val parts = ArrayList<String>(3)
+        parts += activity.resources.getQuantityString(
             R.plurals.preview_saved_summary,
             state.saved,
             state.saved,
             album,
         )
-        if (state.failed <= 0) return summary
-        val failed = activity.resources.getQuantityString(
-            R.plurals.preview_save_failed,
-            state.failed,
-            state.failed,
-        )
-        return summary + activity.getString(R.string.preview_announce_separator) + failed
+        if (state.failed > 0) {
+            parts += activity.resources.getQuantityString(
+                R.plurals.preview_save_failed,
+                state.failed,
+                state.failed,
+            )
+        }
+        if (state.uploaded > 0) {
+            parts += activity.resources.getQuantityString(
+                R.plurals.preview_uploaded,
+                state.uploaded,
+                state.uploaded,
+            )
+        }
+        if (state.uploadFailed > 0) {
+            parts += activity.getString(R.string.preview_upload_failed, state.uploadFailed)
+        }
+        return parts.joinToString(separator)
     }
 
     // --------------------------------------------------------------- helpers

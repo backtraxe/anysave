@@ -9,7 +9,7 @@
 
 - 不做批量爬虫，不做多账号，不做公开分享
 - 不追求「什么都能下」，只做「先看、再选、再存」
-- 不在 M2 阶段处理 YouTube（需要专用提取库兜底）与 Telegram 上传（M3）
+- 不在 M3 阶段处理 YouTube（需要专用提取库兜底）与其它站点
 
 ## 分层
 
@@ -28,6 +28,8 @@
 │                  进度通知、SaveStateBus       │
 ├─────────────────────────────────────────────┤
 │ MediaSaver       直连 CDN 取字节 → MediaStore │
+├─────────────────────────────────────────────┤
+│ TelegramClient   Bot API：相册 / 单条 / caption│
 ├─────────────────────────────────────────────┤
 │ WebView         真实浏览器会话（Cookie 在此） │
 └─────────────────────────────────────────────┘
@@ -61,9 +63,11 @@
 9. 用户点「保存」→ 选中项按作品顺序打包成 `SaveJob`（JSON，`SaveJobCodec`）
 10. `SaveService` 以前台服务启动：3 个并发 worker，每个 worker 调 `MediaSaver`
 11. `MediaSaver` 直接 GET 页面已经拿到的 CDN 地址，写入 MediaStore 对应集合；
-    `SaveStateBus` 把 `Running/Finished` 推给面板，`NotificationManager` 同步进度
-12. 完成后通知留在通知栏；面板显示「已保存」与「查看相册」
-13. （M3）把选中的媒体上传 Telegram
+    `SaveStateBus` 把 `Running/Uploading/Finished` 推给面板，`NotificationManager` 同步进度
+12. 若配置了 Telegram 且打开「保存后自动上传」：`SaveService` 在后台线程把刚保存的
+    文件按字节上传，先 `sendMediaGroup`（每组 ≤10）再退回单条 `sendPhoto/sendVideo`，
+    caption 只挂首个媒体；上传结果并入同一个 `Finished` 状态
+13. 完成后通知留在通知栏；面板显示「已保存」+「已上传 N 项」与「查看相册」
 
 ## Reader 接口
 
@@ -114,6 +118,36 @@ PreviewPanel ──onSaveRequested(items)──▶ MainActivity
 - **注意**：CDN 直链带时效签名（图片约 5 小时），因此保存要在解析后尽快进行，
   不做「稍后下载」队列。
 
+## Telegram 上传（M3）
+
+```
+PreviewPanel 完成保存 ──▶ SaveService.complete()
+                              │ 读 TelegramSettings（token/chat/auto_upload）
+                              ▼
+                     Thread("anysave-telegram")
+                              │ 从相册 Uri 读回字节
+                              ▼
+              TelegramClient.uploadMedia()  ──▶ https://api.telegram.org
+                              │                    bot<token>/sendMediaGroup
+                              ▼                    bot<token>/sendVideo ...
+                    SaveState.Uploading → Finished(uploaded, uploadFailed)
+```
+
+- **配置**（`TelegramSettingsActivity`）保存在应用私有 SharedPreferences：
+  `bot_token`、`chat_id`、`auto_upload`；token 不写日志、不进仓库、不入 Intent。
+  「测试连接」执行 `getMe` + `sendMessage`，用户可确认真实凭据是否可用。
+- **协议规则**（`TelegramProtocol`，纯 JVM 可测）：相册 2–10 项用 `sendMediaGroup`，
+  单条用 `sendPhoto`/`sendVideo`；caption 上限 1024 字符，格式为「文案 + 作者 · 来源」；
+  图片 10 MB、视频 50 MB 上限，超限跳过并计失败。
+- **字节来源**：上传的是刚写入相册的文件（`content://` 读回），因此 Telegram 上的版本
+  与本地完全一致；不依赖 CDN 直链是否过期。
+- **线程**：上传不在主线程（会触发 `NetworkOnMainThreadException`）；网络在
+  `anysave-telegram` 线程，进度/收尾通过 `SaveStateBus` 与主线程 Handler 回到 UI。
+- **可观测**：日志只记录方法/组号/数量（不记录 token）；通知从「正在保存」切到
+  「正在上传到 Telegram」再切到最终结果；面板展示与失败数一致的提示。
+- **测试钩子**：debug 构建允许 SharedPreferences 里的 `api_base` 覆盖 Bot API 地址
+  （release 恒为 `https://api.telegram.org`），配合本地 mock server 做协议级 E2E。
+
 ## 关键设计约束
 
 - **响应捕获以响应体为准**，不要用「URL 里有没有 a_bogus」判断签名是否发生：
@@ -127,6 +161,9 @@ PreviewPanel ──onSaveRequested(items)──▶ MainActivity
 - 缩略图加载手写（`HttpURLConnection` + `LruCache` + `inSampleSize`），不引入图片库。
 - 保存状态只由服务写入、面板只负责渲染；Activity 重建后能从 `SaveStateBus` 补回状态。
 - 同名文件重复保存由 MediaStore 自动加 `(1)` 后缀；M2 不做去重与断点续传。
+- Telegram token 是唯一的外部凭据，只存在于应用私有配置；任何日志、任务载荷、
+  文档都不得包含它。
+- 上传/下载等网络调用一律在后台线程；主线程只做状态渲染与通知更新。
 
 ## 更新策略（M5）
 

@@ -206,3 +206,50 @@ M2 的保存只消费页面已经收到的 CDN 直链。先验证这些直链本
 - Telegram 上传（M3）
 - API 26–28 的 DATA 路径分支（模拟器为 API 35，未在旧设备验证）
 - 保存取消 / 断点续传（M2 明确不做）
+
+## 实验 J：Telegram Bot API 上传协议（mock 服务器）
+
+没有可用的真实 bot 凭据，因此用一个本地 mock Bot API（stdlib HTTP server，模拟
+`getMe` / `sendMessage` / `sendPhoto` / `sendVideo` / `sendMediaGroup`）验证协议，
+通过 debug 构建的 `api_base` 覆盖把应用指向 `http://127.0.0.1:8081`
+（关掉 adb reverse 后不可达；release 构建始终连官方地址）。
+
+| 场景 | 结果 |
+|---|---|
+| 设置页「测试连接」 | mock 收到 `getMe` 200 + `sendMessage` 200（chat_id=424242，text=`AnySave test message`），UI 显示 `Connected: anysave_test_bot` |
+| 图文保存 3 张 + 自动上传 | 1 次 `sendMediaGroup` 200：`file0/file1/file2` = 648,842 / 1,145,320 / 1,309,473 B；media JSON 为 3 条 `attach://file0..2`；caption 只在首项，内容为原文案 + `TANG · https://www.douyin.com/note/7630244974127660645` |
+| 字节一致性 | mock 收到的 3 个文件 SHA-256 与相册里 3 个 jpg 完全一致 |
+| 视频保存 1 条 + 自动上传 | 1 次 `sendVideo` 200，文件 1,560,178 B（SHA-256 与相册 mp4 一致），caption 非空 |
+| 失败路径（token 含 `bad`，mock 返回 400） | 日志 `group 1/1 failed: Bad Request: mock rejection`；`uploaded=0 uploadFailed=3`；UI/通知显示失败数；相册文件保留、无重试风暴、进程存活 |
+| 单条 vs 相册 | 1 个视频走 `sendVideo`，3 张图走 `sendMediaGroup`；单元测试覆盖 10/11/23 张的分组切分 |
+
+独立复跑（Lead）：清理相册后重新保存 2 张并上传，mock 收到 1 次 `sendMediaGroup`
+（2 个文件，caption 仅首项），日志 `uploaded=2 failed=0`，UI `Uploaded 2 items to Telegram`；
+随后官方 3 图复跑 `problems=NONE`。
+
+## 实验 K：上传期间的 UI / 通知
+
+| 状态 | 现象 |
+|---|---|
+| Running | 保存进度条 + `Saving 1 / 3` |
+| Uploading | 进度条 + `Uploading 2 / 3 to Telegram`（中文「正在上传」）；主按钮禁用，网格可滚动 |
+| Finished | `Saved 3 items to AnySave` + `Uploaded 3 items to Telegram`；失败时 `Telegram upload failed for N`（danger 色），可 `View album` |
+| 通知 | 保存中 `Saving to AnySave` → 上传中 `Uploading to Telegram` → 完成 `Saved to AnySave` / `3 item(s) saved, 3 uploaded to Telegram`，完成后留在通知栏 |
+| 设置页 | 齿轮入口、token/chat 预填、自动上传开关、测试连接状态提示均正常；长文案换行不溢出 |
+
+## 实现结论（M3 追加）
+
+11. 上传必须放在后台线程：初版在保存完成回调（主线程）里直接调 Bot API，会抛
+    `NetworkOnMainThreadException`，现已改为独立线程 + 主线程 Handler 收尾（E2E 验证通过）。
+12. 上传的是相册里的字节而不是 CDN 直链：协议测试显示 mock 收到的 SHA-256 与本地文件
+    完全一致，且不受 CDN 链接过期影响。
+13. Bot API 的「单条 vs 相册」边界要显式处理：1 个文件用 `sendPhoto/sendVideo`，
+    2–10 个用 `sendMediaGroup`；caption 只挂第一个媒体，避免每组重复刷屏。
+14. 失败不丢数据：mock 400 时上传计失败，但相册文件与成功计数保留，UI 明确显示失败数。
+
+## 未验证项（M3 追加）
+
+- 真实 `api.telegram.org` 联调（本环境无 bot token；设置页「测试连接」可在有凭据时验证）
+- Bot API 的 429 限流退避、断网重试（当前不做，失败即计失败）
+- >10 张的大相册在真实 API 上的多组发送（分组逻辑有单测，live 只测到 3 张）
+- 频道 / 群组场景下的实际投递（mock 只校验 chat_id 透传）

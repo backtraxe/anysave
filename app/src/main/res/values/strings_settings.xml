@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_title">Telegram settings</string>
+    <string name="settings_back_content_description">Back</string>
+    <string name="settings_token_label">Bot token</string>
+    <string name="settings_token_hint">123456789:AAH…</string>
+    <string name="settings_chat_label">Chat ID</string>
+    <string name="settings_chat_hint">-1001234567890</string>
+    <string name="settings_auto_upload_label">Auto-upload after save</string>
+    <string name="settings_auto_upload_hint">Send every saved item to your Telegram chat.</string>
+    <string name="settings_help">Create a bot with @BotFather and paste its token. Send /start to the bot, then open api.telegram.org/bot&lt;token&gt;/getUpdates and use message.chat.id as the Chat ID (channels: @name). The token stays on this device.</string>
+    <string name="settings_test">Test connection</string>
+    <string name="settings_save">Save</string>
+    <string name="settings_test_ok">Connected: %1$s</string>
+    <string name="settings_test_failed">Test failed: %1$s</string>
+    <string name="settings_invalid_token">That token doesn\'t look right. It should look like 123456789:AAH…</string>
+    <string name="settings_saved">Saved</string>
+</resources>

@@ -33,8 +33,11 @@ class MediaSaver(context: Context) {
 
     private val resolver = context.applicationContext.contentResolver
 
-    /** @return the inserted content Uri, or null when the download failed. */
-    fun save(post: PostMedia, item: MediaItem): Uri? {
+    /** Result of one successful save. */
+    data class SavedFile(val uri: Uri, val bytes: Long)
+
+    /** @return the inserted file, or null when the download failed. */
+    fun save(post: PostMedia, item: MediaItem): SavedFile? {
         val target = MediaNaming.target(post, item)
         val collection = if (target.isVideo) {
             MediaStore.Video.Media.EXTERNAL_CONTENT_URI
@@ -77,7 +80,7 @@ class MediaSaver(context: Context) {
                 resolver.update(uri, published, null, null)
             }
             Log.i(TAG, "saved ${target.displayName} (${bytes}B) -> $uri")
-            uri
+            SavedFile(uri = uri, bytes = bytes)
         } catch (t: Throwable) {
             Log.w(TAG, "download failed for ${target.displayName}: ${t.message}")
             try {

@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.util.Log
+import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
 import android.webkit.WebView
@@ -76,6 +77,9 @@ class MainActivity : Activity() {
             override fun onOpenAlbum() = openAlbum()
         })
         findViewById<Button>(R.id.extractButton).setOnClickListener { startExtraction() }
+        findViewById<View>(R.id.settingsButton).setOnClickListener {
+            startActivity(Intent(this, TelegramSettingsActivity::class.java))
+        }
     }
 
     override fun onStart() {

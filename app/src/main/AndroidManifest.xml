@@ -32,5 +32,10 @@
             android:name=".download.SaveService"
             android:exported="false"
             android:foregroundServiceType="dataSync" />
+
+        <activity
+            android:name=".TelegramSettingsActivity"
+            android:exported="false"
+            android:label="@string/settings_title" />
     </application>
 </manifest>

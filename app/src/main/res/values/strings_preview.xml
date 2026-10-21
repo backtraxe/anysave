@@ -55,6 +55,15 @@
     <string name="preview_done">Done</string>
     <string name="preview_announce_separator">". "</string>
 
+    <!-- M3 Telegram upload step -->
+    <string name="preview_uploading">Uploading %1$d / %2$d to Telegram</string>
+    <string name="preview_uploading_short">Uploading…</string>
+    <plurals name="preview_uploaded">
+        <item quantity="one">Uploaded %1$d item to Telegram</item>
+        <item quantity="other">Uploaded %1$d items to Telegram</item>
+    </plurals>
+    <string name="preview_upload_failed">Telegram upload failed for %1$d</string>
+
     <!-- Full-screen viewer -->
     <string name="preview_viewer_close">Close preview</string>
     <string name="preview_viewer_counter">%1$d / %2$d</string>

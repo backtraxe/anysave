@@ -22,4 +22,8 @@
     <string name="notification_saved_title">Saved to AnySave</string>
     <string name="notification_saved_text">%1$d item(s) added to the AnySave album</string>
     <string name="notification_saved_partial">%1$d saved, %2$d failed</string>
+    <string name="notification_uploading_title">Uploading to Telegram</string>
+    <string name="notification_uploading_text">%1$d / %2$d uploaded</string>
+    <string name="notification_saved_uploaded">%1$d item(s) saved, %2$d uploaded to Telegram</string>
+    <string name="notification_saved_upload_failed">%1$d item(s) saved, Telegram upload failed for %2$d</string>
 </resources>
