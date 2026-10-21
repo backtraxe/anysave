@@ -8,6 +8,7 @@
     <string name="status_extracting">Extracting…</string>
     <string name="status_no_reader">No reader for this site yet.</string>
     <string name="status_invalid_url">Please paste a valid http(s) link.</string>
-    <string name="status_hits">%1$d response(s) captured in %2$d ms</string>
+    <string name="status_parsed">Parsed %1$d item(s) in %2$d ms</string>
+    <string name="status_parse_failed">Captured %1$d response(s) but found no media in them. Open a post page (video or note) and try again.</string>
     <string name="status_timeout">No matching response captured (timeout).</string>
 </resources>

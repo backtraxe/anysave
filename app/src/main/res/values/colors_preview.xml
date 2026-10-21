@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!--
+      60/30/10 palette for the M1 preview panel.
+      The canvas is a warm paper tone derived from the brand hue so #FF5A36
+      reads as a 10% accent instead of a wash. Surfaces stay pure white.
+    -->
+    <color name="preview_canvas">#FAF7F5</color>
+    <color name="preview_surface">#FFFFFF</color>
+    <color name="preview_placeholder">#F0EAE7</color>
+    <color name="preview_placeholder_icon">#948C88</color>
+    <color name="preview_divider">#14000000</color>
+    <color name="preview_text_secondary">#6B625D</color>
+
+    <!-- Warm near-black scrims for chrome that sits on arbitrary cover art. -->
+    <color name="preview_media_scrim">#B31C1512</color>
+    <color name="preview_media_scrim_soft">#731C1512</color>
+    <color name="preview_scrim">#F2140F0D</color>
+    <color name="preview_glass">#26FFFFFF</color>
+    <color name="preview_glass_border">#1FFFFFFF</color>
+    <color name="preview_on_dark_muted">#99FFFFFF</color>
+
+    <!-- Brand ramp: tinted fills only; solid brand is reserved for the check
+         chip and text/icon accents. -->
+    <color name="preview_brand_tint">#1AFF5A36</color>
+    <color name="preview_brand_tint_soft">#0DFF5A36</color>
+    <color name="preview_brand_tint_border">#33FF5A36</color>
+
+    <!-- Tinted shadows keep depth warm instead of a gray haze. -->
+    <color name="preview_shadow_tint">#33C98B74</color>
+</resources>

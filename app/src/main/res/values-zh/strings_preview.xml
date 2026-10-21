@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- 顶栏 -->
+    <string name="preview_title">预览</string>
+    <string name="preview_back">返回网页</string>
+    <plurals name="preview_item_count">
+        <item quantity="other">%1$d 项</item>
+    </plurals>
+
+    <!-- 作品信息 -->
+    <string name="preview_author_unknown">未知作者</string>
+
+    <!-- 筛选 -->
+    <string name="preview_filter_all">全部 (%1$d)</string>
+    <string name="preview_filter_images">图片 (%1$d)</string>
+    <string name="preview_filter_videos">视频 (%1$d)</string>
+
+    <!-- 底部选择汇总 -->
+    <string name="preview_selected">已选 %1$d / %2$d</string>
+    <string name="preview_select_all">全选</string>
+    <string name="preview_clear_selection">取消全选</string>
+
+    <!-- 网格无障碍描述 -->
+    <string name="preview_item_description_image">第 %1$d 张，共 %2$d 张</string>
+    <string name="preview_item_description_video">第 %1$d 个视频，共 %2$d 个，时长 %3$s</string>
+    <string name="preview_item_description_video_no_duration">第 %1$d 个视频，共 %2$d 个</string>
+    <string name="preview_item_image_generic">图片</string>
+    <string name="preview_item_video_generic">视频</string>
+    <string name="preview_item_selected">已选</string>
+    <string name="preview_item_not_selected">未选</string>
+
+    <!-- 空状态 -->
+    <string name="preview_empty_images_title">这个作品里没有图片</string>
+    <string name="preview_empty_videos_title">这个作品里没有视频</string>
+    <string name="preview_empty_all_title">这个作品里没有媒体</string>
+    <string name="preview_empty_filter_body">换个筛选条件，或者查看全部。</string>
+    <string name="preview_empty_post_title">暂无可预览内容</string>
+    <string name="preview_empty_post_body">这个作品没有我们可以预览的媒体。</string>
+    <string name="preview_empty_show_all">查看全部</string>
+
+    <!-- 全屏预览 -->
+    <string name="preview_viewer_close">关闭预览</string>
+    <string name="preview_viewer_counter">%1$d / %2$d</string>
+    <string name="preview_viewer_video_cover_missing">这个视频没有封面</string>
+    <string name="preview_viewer_load_failed">预览加载失败</string>
+    <string name="preview_image_unavailable">图片不可用</string>
+</resources>

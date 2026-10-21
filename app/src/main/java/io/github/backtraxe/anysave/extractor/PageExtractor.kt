@@ -13,6 +13,7 @@ import androidx.webkit.WebViewFeature
 import io.github.backtraxe.anysave.R
 import io.github.backtraxe.anysave.model.ExtractionSnapshot
 import io.github.backtraxe.anysave.model.MediaHit
+import io.github.backtraxe.anysave.model.PostMedia
 import io.github.backtraxe.anysave.reader.SiteReader
 import org.json.JSONArray
 import org.json.JSONObject
@@ -24,7 +25,9 @@ import org.json.JSONTokener
  * Flow:
  * 1. register the hook as a document-start script for the reader's origin
  * 2. load the page and let the site's own JavaScript run (and sign its requests)
- * 3. poll window.__anysaveHits until a matching response arrives or we time out
+ * 3. poll window.__anysaveHits (metadata only) until a response arrives or we time out
+ * 4. pull the captured body once, hand it to the reader's parser
+ * 5. report back a snapshot carrying either a parsed post or a diagnostic
  *
  * The extractor never builds network requests and never computes signatures;
  * it only observes responses the page already produced.
@@ -41,6 +44,9 @@ class PageExtractor(
     private val hookScript: String = readRaw(R.raw.hook)
     private var generation = 0
     private var startedAt = 0L
+    private var reader: SiteReader? = null
+    private var finished = false
+    private var embeddedTried = false
 
     init {
         webView.settings.apply {
@@ -65,7 +71,12 @@ class PageExtractor(
         }
 
         generation += 1
+        finished = false
+        embeddedTried = false
+        this.reader = reader
         startedAt = SystemClock.elapsedRealtime()
+        // Drop anything captured on the previous page before navigating.
+        webView.evaluateJavascript(RESET_JS, null)
         webView.loadUrl(url)
         handler.postDelayed({ poll(generation) }, FIRST_POLL_DELAY_MS)
     }
@@ -79,24 +90,111 @@ class PageExtractor(
         if (gen != generation) return
         webView.evaluateJavascript(STATUS_JS) { raw ->
             if (gen != generation) return@evaluateJavascript
-            val snapshot = parse(raw)
-            val elapsed = SystemClock.elapsedRealtime() - startedAt
+            val snapshot = parseStatus(raw)
             if (snapshot == null) {
                 handler.postDelayed({ poll(gen) }, POLL_INTERVAL_MS)
                 return@evaluateJavascript
             }
-            if (snapshot.hits.isNotEmpty() || elapsed >= TIMEOUT_MS) {
-                onFinished(snapshot.copy(elapsedMs = elapsed))
+            val elapsed = SystemClock.elapsedRealtime() - startedAt
+            val currentReader = reader
+            when {
+                snapshot.hits.isNotEmpty() -> captureBody(gen, snapshot)
+                elapsed >= TIMEOUT_MS -> finish(snapshot.copy(elapsedMs = elapsed))
+                currentReader?.embeddedPayloadScript != null &&
+                    !embeddedTried &&
+                    elapsed >= EMBEDDED_FALLBACK_AFTER_MS ->
+                    readEmbeddedPayload(gen, snapshot, currentReader)
+
+                else -> handler.postDelayed({ poll(gen) }, POLL_INTERVAL_MS)
+            }
+        }
+    }
+
+    /** Response bodies are only transferred once a hit was observed: polling stays cheap. */
+    private fun captureBody(gen: Int, snapshot: ExtractionSnapshot) {
+        webView.evaluateJavascript(CAPTURE_JS) { raw ->
+            if (gen != generation) return@evaluateJavascript
+            val post = parsePost(raw, snapshot.pageUrl)
+            val elapsed = SystemClock.elapsedRealtime() - startedAt
+            Log.i(
+                TAG,
+                "captured ${snapshot.hits.size} response(s) in ${elapsed}ms, post=${post?.items?.size}",
+            )
+            finish(snapshot.copy(elapsedMs = elapsed, post = post))
+        }
+    }
+
+    /**
+     * Read-only fallback for server-rendered pages that never issue the
+     * observed response: ask the reader for a payload already embedded in the
+     * page (douyin note pages embed their detail in RSC flight data).
+     */
+    private fun readEmbeddedPayload(
+        gen: Int,
+        snapshot: ExtractionSnapshot,
+        reader: SiteReader,
+    ) {
+        embeddedTried = true
+        val script = reader.embeddedPayloadScript ?: return
+        webView.evaluateJavascript(script) { raw ->
+            if (gen != generation) return@evaluateJavascript
+            val payload = jsonString(raw)?.takeIf { it.isNotBlank() }
+            val pageUrl = snapshot.pageUrl.ifBlank { webView.url.orEmpty() }
+            val post = if (payload == null) {
+                Log.i(TAG, "no embedded payload for ${reader.id} (${pageUrl})")
+                null
+            } else {
+                Log.i(TAG, "embedded payload found: ${payload.length} chars")
+                try {
+                    reader.parse(payload, pageUrl)
+                } catch (t: Throwable) {
+                    Log.w(TAG, "reader ${reader.id} failed on embedded payload", t)
+                    null
+                }
+            }
+            if (post != null && !post.isEmpty) {
+                val elapsed = SystemClock.elapsedRealtime() - startedAt
+                Log.i(TAG, "embedded parse ok in ${elapsed}ms, items=${post.items.size}")
+                finish(snapshot.copy(elapsedMs = elapsed, post = post))
             } else {
                 handler.postDelayed({ poll(gen) }, POLL_INTERVAL_MS)
             }
         }
     }
 
-    private fun parse(raw: String?): ExtractionSnapshot? {
-        if (raw.isNullOrBlank() || raw == "null") return null
+    private fun finish(snapshot: ExtractionSnapshot) {
+        if (finished) return
+        finished = true
+        onFinished(snapshot)
+    }
+
+    private fun parsePost(raw: String?, pageUrl: String): PostMedia? {
+        val reader = reader ?: return null
+        val payload = jsonString(raw) ?: return null
+        val array = try {
+            JSONArray(payload)
+        } catch (t: Throwable) {
+            Log.w(TAG, "failed to parse captured bodies", t)
+            return null
+        }
+        for (i in 0 until array.length()) {
+            val entry = array.optJSONObject(i) ?: continue
+            val body = entry.optString("body")
+            if (body.isEmpty()) continue
+            val post = try {
+                reader.parse(body, pageUrl)
+            } catch (t: Throwable) {
+                Log.w(TAG, "reader ${reader.id} failed on captured body", t)
+                null
+            }
+            if (post != null && !post.isEmpty) return post
+        }
+        return null
+    }
+
+    private fun parseStatus(raw: String?): ExtractionSnapshot? {
+        val payload = jsonString(raw) ?: return null
         return try {
-            val payload = JSONTokener(raw).nextValue() as? String ?: return null
             val obj = JSONObject(payload)
             val array = obj.optJSONArray("hits") ?: JSONArray()
             val hits = ArrayList<MediaHit>(array.length())
@@ -122,6 +220,16 @@ class PageExtractor(
         }
     }
 
+    private fun jsonString(raw: String?): String? {
+        if (raw.isNullOrBlank() || raw == "null") return null
+        return try {
+            JSONTokener(raw).nextValue() as? String
+        } catch (t: Throwable) {
+            Log.w(TAG, "failed to decode JS result", t)
+            null
+        }
+    }
+
     private fun originOf(url: String): String? {
         val uri = Uri.parse(url)
         val scheme = uri.scheme?.lowercase() ?: return null
@@ -140,10 +248,26 @@ class PageExtractor(
         private const val POLL_INTERVAL_MS = 600L
         private const val TIMEOUT_MS = 25_000L
 
+        /** Give the page's own request a head start before reading embedded data. */
+        private const val EMBEDDED_FALLBACK_AFTER_MS = 9_000L
+
+        private val RESET_JS = """
+            (function () {
+              window.__anysaveHits = [];
+              window.__anysaveSeen = {};
+            })()
+        """.trimIndent()
+
+        /** Metadata only: keeps the 600 ms poll cheap even before a body arrives. */
         private val STATUS_JS = """
             (function () {
               try {
-                var hits = window.__anysaveHits || [];
+                var source = window.__anysaveHits || [];
+                var hits = [];
+                for (var i = 0; i < source.length; i++) {
+                  var h = source[i];
+                  hits.push({ via: h.via, url: h.url, status: h.status, len: h.len });
+                }
                 return JSON.stringify({
                   title: document.title || '',
                   url: location.href || '',
@@ -155,6 +279,27 @@ class PageExtractor(
                 return JSON.stringify({
                   title: '', url: '', patched: false, hits: [], error: String(e)
                 });
+              }
+            })()
+        """.trimIndent()
+
+        /** One-shot body pull, after a hit was seen. Total transfer is capped. */
+        private val CAPTURE_JS = """
+            (function () {
+              try {
+                var source = window.__anysaveHits || [];
+                var out = [];
+                var total = 0;
+                for (var i = 0; i < source.length; i++) {
+                  var body = source[i].body || '';
+                  if (!body) continue;
+                  if (total + body.length > 6000000) break;
+                  out.push({ url: source[i].url, status: source[i].status, body: body });
+                  total += body.length;
+                }
+                return JSON.stringify(out);
+              } catch (e) {
+                return JSON.stringify([]);
               }
             })()
         """.trimIndent()

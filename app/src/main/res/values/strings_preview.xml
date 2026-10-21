@@ -1,0 +1,48 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Top bar -->
+    <string name="preview_title">Preview</string>
+    <string name="preview_back">Back to web page</string>
+    <plurals name="preview_item_count">
+        <item quantity="one">%1$d item</item>
+        <item quantity="other">%1$d items</item>
+    </plurals>
+
+    <!-- Post header -->
+    <string name="preview_author_unknown">Unknown author</string>
+
+    <!-- Filters -->
+    <string name="preview_filter_all">All (%1$d)</string>
+    <string name="preview_filter_images">Images (%1$d)</string>
+    <string name="preview_filter_videos">Videos (%1$d)</string>
+
+    <!-- Selection summary in the thumb zone -->
+    <string name="preview_selected">Selected %1$d / %2$d</string>
+    <string name="preview_select_all">Select all</string>
+    <string name="preview_clear_selection">Clear</string>
+
+    <!-- Grid cell accessibility -->
+    <string name="preview_item_description_image">Image %1$d of %2$d</string>
+    <string name="preview_item_description_video">Video %1$d of %2$d, duration %3$s</string>
+    <string name="preview_item_description_video_no_duration">Video %1$d of %2$d</string>
+    <string name="preview_item_image_generic">Image</string>
+    <string name="preview_item_video_generic">Video</string>
+    <string name="preview_item_selected">selected</string>
+    <string name="preview_item_not_selected">not selected</string>
+
+    <!-- Empty states -->
+    <string name="preview_empty_images_title">No images in this post</string>
+    <string name="preview_empty_videos_title">No videos in this post</string>
+    <string name="preview_empty_all_title">No media in this post</string>
+    <string name="preview_empty_filter_body">Try another filter, or show everything.</string>
+    <string name="preview_empty_post_title">Nothing to preview</string>
+    <string name="preview_empty_post_body">This post does not expose any media we can preview.</string>
+    <string name="preview_empty_show_all">Show all</string>
+
+    <!-- Full-screen viewer -->
+    <string name="preview_viewer_close">Close preview</string>
+    <string name="preview_viewer_counter">%1$d / %2$d</string>
+    <string name="preview_viewer_video_cover_missing">No cover for this video</string>
+    <string name="preview_viewer_load_failed">Preview could not load</string>
+    <string name="preview_image_unavailable">Image unavailable</string>
+</resources>

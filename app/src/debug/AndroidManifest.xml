@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!-- Debug-only harness for the M1 preview panel. Never part of release builds. -->
+    <application>
+        <activity
+            android:name="io.github.backtraxe.anysave.ui.PreviewDemoActivity"
+            android:exported="true"
+            android:label="AnySave preview demo"
+            android:theme="@style/Theme.AnySave" />
+    </application>
+</manifest>

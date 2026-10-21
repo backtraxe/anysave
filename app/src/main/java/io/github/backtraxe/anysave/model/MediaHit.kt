@@ -15,4 +15,6 @@ data class ExtractionSnapshot(
     val patched: Boolean,
     val hits: List<MediaHit>,
     val elapsedMs: Long,
+    /** Parsed preview payload, when a reader could make sense of a captured body. */
+    val post: PostMedia? = null,
 )

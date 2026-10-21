@@ -9,17 +9,20 @@
 
 - 不做批量爬虫，不做多账号，不做公开分享
 - 不追求「什么都能下」，只做「先看、再选、再存」
-- 不在 M0 阶段处理 YouTube（需要专用提取库兜底）
+- 不在 M1 阶段处理 YouTube（需要专用提取库兜底）
 
 ## 分层
 
 ```
 ┌─────────────────────────────────────────────┐
-│ UI (MainActivity → 预览网格 / 任务列表)      │
+│ UI   MainActivity → ui.PreviewPanel          │
+│      缩略图网格 / 筛选 / 多选 / 全屏查看      │
 ├─────────────────────────────────────────────┤
-│ PageExtractor   注入 hook、轮询、产出快照     │
+│ PageExtractor   注入 hook、轮询、取响应体、   │
+│                 解析、SSR 内嵌数据兜底        │
 ├─────────────────────────────────────────────┤
-│ SiteReader      声明 origin 与响应 URL 模式   │
+│ SiteReader + Parser  响应 URL 模式、          │
+│                  JSON → PostMedia/MediaItem  │
 ├─────────────────────────────────────────────┤
 │ WebView         真实浏览器会话（Cookie 在此） │
 ├─────────────────────────────────────────────┤
@@ -27,18 +30,35 @@
 └─────────────────────────────────────────────┘
 ```
 
+## 两类数据来源
+
+站点把同一个作品数据放在两个地方，应用按「不构造请求」的原则分别处理：
+
+1. **页面自己发出的网络响应**（视频详情页，`/aweme/v1/web/aweme/detail/`）。
+   hook 在文档开始时包装 `fetch` / `XHR`，命中则把 URL、状态码和**响应体**写进
+   `window.__anysaveHits`；应用轮询元数据，命中后一次性取回响应体，交给 reader 解析。
+2. **页面内嵌的 SSR 数据**（图文笔记页 `/note/<id>`）。这类页面不请求 detail 接口，
+   数据以 React Server Components 的 flight 数据（`window.__pace_f`）内嵌在 HTML 里。
+   reader 提供一个只读 JS 表达式：拼接 flight chunks、按当前作品 id 定位
+   `"awemeId"`，再做括号配对取出 `"aweme": {...}`，返回 JSON 交给同一个解析器。
+   应用没有替页面发请求，只是读取它已经渲染出来的数据。
+
+网络响应的等待优先：先轮询 9 秒左右，没有任何命中才启用内嵌数据兜底；两者都失败
+才按超时处理（25 秒）。
+
 ## 数据流
 
 1. 用户粘贴 URL
 2. `SiteReader.forUrl()` 选 reader
 3. `PageExtractor` 用 `WebViewCompat.addDocumentStartJavaScript`
    在目标 origin 注入 `hook.js`
-4. WebView 加载页面；站点自己的 JS 发请求、自己签名
-5. `hook.js` 包装 `fetch` / `XMLHttpRequest`，把匹配的响应记到
-   `window.__anysaveHits`
-6. `PageExtractor` 每 600ms 轮询一次，拿到命中或超时后回调快照
-7. （M1）把命中响应解析成 `MediaItem`，进入预览与勾选
-8. （M2）下载选中项、写相册；（M3）上传 Telegram
+4. WebView 加载页面；站点自己的 JS 发请求、自己签名，hook 记录命中的响应体
+5. `PageExtractor` 每 600ms 轮询一次元数据（不传响应体，轮询保持廉价）
+6. 命中后一次性取回响应体，依次交给 `reader.parse(body, pageUrl)`，得到 `PostMedia`
+7. 若 9 秒仍无命中，执行 reader 的 `embeddedPayloadScript`，解析页面内嵌数据
+8. `MainActivity` 把 `PostMedia` 交给 `ui.PreviewPanel`：缩略图网格、筛选、多选、
+   长按全屏查看；返回网页时恢复 WebView
+9. （M2）下载选中项、写相册；（M3）上传 Telegram
 
 ## Reader 接口
 
@@ -48,11 +68,18 @@ interface SiteReader {
     val origin: String
     val responsePatterns: List<String>
     fun matches(url: String): Boolean
+
+    /** 把一个捕获到的响应体解析成可预览的作品；不是作品数据则返回 null。 */
+    fun parse(body: String, sourceUrl: String): PostMedia? = null
+
+    /** 可选：返回页面内嵌数据（SSR）的 JS 表达式；没有则返回 null。 */
+    val embeddedPayloadScript: String? get() = null
 }
 ```
 
-M0 的 reader 只声明「在哪个 origin 注入、哪些 URL 是目标响应」。下一层增加
-`parse(payload): List<MediaItem>`，把 JSON 变成可预览的媒体清单。
+解析器（`DouyinParser`）是纯 JVM 代码，不认识 Android API，因此可以用真实响应
+fixture 做单元测试。图片选择规则：跳过带 `dy-water` 水印流水线的 URL、优先 jpeg；
+视频优先 `play_addr`（网页播放端、无水印），`playwm` 一律跳过，`bit_rate` 档位兜底。
 
 ## 关键设计约束
 
@@ -62,6 +89,12 @@ M0 的 reader 只声明「在哪个 origin 注入、哪些 URL 是目标响应�
   重新导航，JS 上下文重建会让 patched 短暂变回 false。
 - 注入脚本按 origin 常驻，`addDocumentStartJavaScript` 对每次导航都生效。
 - 只对白名单 origin 注入；不要把 `addJavascriptInterface` 暴露给任意页面。
+- 摘要：hook 只做「记录」，解析全部在 Kotlin 侧完成；站点字段知识集中在 parser 和
+  它的测试里，hook 保持站点无关。
+- **图文笔记的 `video` 对象是占位**（`duration == 0`、静态资源），不能当成视频条目：
+   parser 只在没有图片、或时长大于 0 时才产出视频条目。
+- 缩略图加载是手写的（`HttpURLConnection` + `LruCache` + `inSampleSize`），带
+  `Referer: https://www.douyin.com/` 与移动 UA；不引入图片库依赖。
 
 ## 更新策略（M5）
 
@@ -70,9 +103,12 @@ M0 的 reader 只声明「在哪个 origin 注入、哪些 URL 是目标响应�
 - 远端 `index.json`：reader id、版本、URL、sha256
 - 应用启动时校验并缓存到私有目录
 - 加载顺序：私有目录 → 内置 assets
-- 脚本运行在页面上下文，只依赖 `__anysavePatterns` 与 hook 约定
+- 脚本运行在页面上下文，只依赖 `__anysavePatterns`、hook 约定与
+  `embeddedPayloadScript` 的返回格式
 
 ## 为什么不用 HTTP 重放
 
 重放路线需要持续逆向站点签名并管理 Cookie 生命周期，这是本项目明确要摆脱的
 维护负担。代价是提取必须在前台 WebView 中完成、速度较慢；这是有意识的取舍。
+SSR 页面也坚持「只读页面已有数据」，而不是替页面补一次签名请求——后者虽然也能
+工作，但会让「只观察」的边界失效，并重新引入对接口参数的维护。

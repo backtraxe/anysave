@@ -1,0 +1,57 @@
+{
+  "status_code": 0,
+  "aweme_detail": {
+    "aweme_id": "7691296880559540623",
+    "aweme_type": 0,
+    "desc": "我去！好美",
+    "author": {
+      "nickname": "讨厌晚上"
+    },
+    "video": {
+      "duration": 7000,
+      "width": 1080,
+      "height": 1920,
+      "play_addr": {
+        "url_list": [
+          "https://v26-web.douyinvod.com/2d67fc63e0b3374047848434b7b91119/6ad945d2/video/tos/cn/tos-cn-ve-15/owqOQ9fDAMQJoAfCaAWE8WrcLCM2tIUe2f8YTg/?a=6383&ch=26&cr=3&dr=0&lr=all&cd=0%7C0%7C0%7C3&cv=1&br=1741&bt=1741&cs=0&ds=4&ft=AJkeU_TERR0si0C4kDv2Nc0iPMgzbL_tXORU_49Jus2JNv7TGW&mime_type=video_mp4&qs=0&rc=O2U1Z2RoZDk4OTo8M2k0O0Bpamlyc205cndpZDMzNGkzM0BgLy9jL180NTExLl8uYy0vYSNqaDVnMmRrZnJhLS1kLTBzcw%3D%3D&btag=c0000e00008000&cquery=100B_100x_100z_100o_100w&dy_q=1792613276&feature_id=37f92ebd2877ae8e7eba995d406c5150&l=2026102204075679B455C0AA4FB784B0B7",
+          "https://v11-weba.douyinvod.com/e64e8044e63622febc39802a9d9af909/6ad945d2/video/tos/cn/tos-cn-ve-15/owqOQ9fDAMQJoAfCaAWE8WrcLCM2tIUe2f8YTg/?a=6383&ch=26&cr=3&dr=0&lr=all&cd=0%7C0%7C0%7C3&cv=1&br=1741&bt=1741&cs=0&ds=4&ft=AJkeU_TERR0si0C4kDv2Nc0iPMgzbL_tXORU_49Jus2JNv7TGW&mime_type=video_mp4&qs=0&rc=O2U1Z2RoZDk4OTo8M2k0O0Bpamlyc205cndpZDMzNGkzM0BgLy9jL180NTExLl8uYy0vYSNqaDVnMmRrZnJhLS1kLTBzcw%3D%3D&btag=c0000e00008000&cquery=100w_100B_100x_100z_100o&dy_q=1792613276&feature_id=37f92ebd2877ae8e7eba995d406c5150&l=2026102204075679B455C0AA4FB784B0B7",
+          "https://www.douyin.com/aweme/v1/play/?video_id=v0300fg10000daufitnog65jjp8okfmg&line=0&file_id=2801ff10b9174645867abe2afd222bc8&sign=42d3e6dc98f5e66db93b59b2beb9f34e&is_play_url=1&source=PackSourceEnum_AWEME_DETAIL&biz_sign=NRPI1lC4AlkgB1YZ_o3JxvAfESRKvePEcubCs9g9YHOwTcZpA5NByMUc9LnT9VaaOzLa7CA0Ou-V1V2BgVYQe9cQ70jDDGbNHaUZIZuaRMUGyO7s5wbVW7et0I2xs1hA&aid=6383"
+        ]
+      },
+      "bit_rate": [
+        {
+          "bit_rate": 1783060,
+          "play_addr": {
+            "url_list": [
+              "https://v26-web.douyinvod.com/2d67fc63e0b3374047848434b7b91119/6ad945d2/video/tos/cn/tos-cn-ve-15/owqOQ9fDAMQJoAfCaAWE8WrcLCM2tIUe2f8YTg/?a=6383&ch=26&cr=3&dr=0&lr=all&cd=0%7C0%7C0%7C3&cv=1&br=1741&bt=1741&cs=0&ds=4&ft=AJkeU_TERR0si0C4kDv2Nc0iPMgzbL_tXORU_49Jus2JNv7TGW&mime_type=video_mp4&qs=0&rc=O2U1Z2RoZDk4OTo8M2k0O0Bpamlyc205cndpZDMzNGkzM0BgLy9jL180NTExLl8uYy0vYSNqaDVnMmRrZnJhLS1kLTBzcw%3D%3D&btag=c0000e00008000&cquery=100B_100x_100z_100o_100w&dy_q=1792613276&feature_id=37f92ebd2877ae8e7eba995d406c5150&l=2026102204075679B455C0AA4FB784B0B7",
+              "https://v11-weba.douyinvod.com/e64e8044e63622febc39802a9d9af909/6ad945d2/video/tos/cn/tos-cn-ve-15/owqOQ9fDAMQJoAfCaAWE8WrcLCM2tIUe2f8YTg/?a=6383&ch=26&cr=3&dr=0&lr=all&cd=0%7C0%7C0%7C3&cv=1&br=1741&bt=1741&cs=0&ds=4&ft=AJkeU_TERR0si0C4kDv2Nc0iPMgzbL_tXORU_49Jus2JNv7TGW&mime_type=video_mp4&qs=0&rc=O2U1Z2RoZDk4OTo8M2k0O0Bpamlyc205cndpZDMzNGkzM0BgLy9jL180NTExLl8uYy0vYSNqaDVnMmRrZnJhLS1kLTBzcw%3D%3D&btag=c0000e00008000&cquery=100w_100B_100x_100z_100o&dy_q=1792613276&feature_id=37f92ebd2877ae8e7eba995d406c5150&l=2026102204075679B455C0AA4FB784B0B7",
+              "https://www.douyin.com/aweme/v1/play/?video_id=v0300fg10000daufitnog65jjp8okfmg&line=0&file_id=2801ff10b9174645867abe2afd222bc8&sign=42d3e6dc98f5e66db93b59b2beb9f34e&is_play_url=1&source=PackSourceEnum_AWEME_DETAIL&biz_sign=NRPI1lC4AlkgB1YZ_o3JxvAfESRKvePEcubCs9g9YHOwTcZpA5NByMUc9LnT9VaaOzLa7CA0Ou-V1V2BgVYQe9cQ70jDDGbNHaUZIZuaRMUGyO7s5wbVW7et0I2xs1hA&aid=6383"
+            ]
+          }
+        },
+        {
+          "bit_rate": 1340842,
+          "play_addr": {
+            "url_list": [
+              "https://v26-web.douyinvod.com/651205883342f2c630f1dce7c6681544/6ad945d2/video/tos/cn/tos-cn-ve-15/o8p2c8QbxI85B0MfDoLtiAAAM8AeWCA9REeqfi/?a=6383&ch=26&cr=3&dr=0&lr=all&cd=0%7C0%7C0%7C3&cv=1&br=1309&bt=1309&cs=0&ds=6&ft=AJkeU_TERR0si0C4kDv2Nc0iPMgzbL_tXORU_49Jus2JNv7TGW&mime_type=video_mp4&qs=0&rc=O2c4ZTY7ZDs6NzQ8N2k1OkBpamlyc205cndpZDMzNGkzM0AyLjUvLy00NS8xMjJhYl4yYSNqaDVnMmRrZnJhLS1kLTBzcw%3D%3D&btag=c0000e00008000&cquery=100w_100B_100x_100z_100o&dy_q=1792613276&feature_id=f0150a16a324336cda5d6dd0b69ed299&l=2026102204075679B455C0AA4FB784B0B7",
+              "https://v11-weba.douyinvod.com/1834b31be83308781d0038fc8cd12422/6ad945d2/video/tos/cn/tos-cn-ve-15/o8p2c8QbxI85B0MfDoLtiAAAM8AeWCA9REeqfi/?a=6383&ch=26&cr=3&dr=0&lr=all&cd=0%7C0%7C0%7C3&cv=1&br=1309&bt=1309&cs=0&ds=6&ft=AJkeU_TERR0si0C4kDv2Nc0iPMgzbL_tXORU_49Jus2JNv7TGW&mime_type=video_mp4&qs=0&rc=O2c4ZTY7ZDs6NzQ8N2k1OkBpamlyc205cndpZDMzNGkzM0AyLjUvLy00NS8xMjJhYl4yYSNqaDVnMmRrZnJhLS1kLTBzcw%3D%3D&btag=c0000e00008000&cquery=100z_100o_100w_100B_100x&dy_q=1792613276&feature_id=f0150a16a324336cda5d6dd0b69ed299&l=2026102204075679B455C0AA4FB784B0B7",
+              "https://www.douyin.com/aweme/v1/play/?video_id=v0300fg10000daufitnog65jjp8okfmg&line=0&file_id=57a2efd459514427887a08232b851d58&sign=bf466985ee540b1f941a5c7d47e46218&is_play_url=1&source=PackSourceEnum_AWEME_DETAIL&biz_sign=NRPI1lC4AlkgB1YZ_o3JxvAfESRKvePEcubCs9g9YHOwTcZpA5NByMUc9LnT9VaaOzLa7CA0Ou-V1V2BgVYQe9cQ70jDDGbNHaUZIZuaRMUGyO7s5wbVW7et0I2xs1hA&aid=6383"
+            ]
+          }
+        }
+      ],
+      "cover": {
+        "url_list": [
+          "https://p9-pc-sign.douyinpic.com/image-cut-tos-priv/b1dab798fd694b6ebb142ab2e384623d~tplv-dy-resize-origshort-autoq-75:330.jpeg?lk3s=138a59ce&x-expires=2107972800&x-signature=Ky%2B3N%2F1sb7d%2BHYCsao%2Fb8M7nsEk%3D&from=327834062&s=PackSourceEnum_AWEME_DETAIL&se=false&sc=cover&biz_tag=pcweb_cover&l=2026102204075679B455C0AA4FB784B0B7",
+          "https://p3-pc-sign.douyinpic.com/image-cut-tos-priv/b1dab798fd694b6ebb142ab2e384623d~tplv-dy-resize-origshort-autoq-75:330.jpeg?lk3s=138a59ce&x-expires=2107972800&x-signature=%2BwMgtymhkN7Aeo1ybuLKbQZrz0I%3D&from=327834062&s=PackSourceEnum_AWEME_DETAIL&se=false&sc=cover&biz_tag=pcweb_cover&l=2026102204075679B455C0AA4FB784B0B7"
+        ]
+      },
+      "origin_cover": {
+        "url_list": [
+          "https://p3-pc-sign.douyinpic.com/tos-cn-p-0015/ocBx8AM8aedCcW2YqeftLCMDAQn5EUZQvUcfQo~tplv-dy-360p.jpeg?lk3s=138a59ce&x-expires=1793822400&x-signature=IDXvz8uPbgoOiNaJFwe8y3Hk5K4%3D&from=327834062&s=PackSourceEnum_AWEME_DETAIL&se=false&sc=origin_cover&biz_tag=pcweb_cover&l=2026102204075679B455C0AA4FB784B0B7",
+          "https://p9-pc-sign.douyinpic.com/tos-cn-p-0015/ocBx8AM8aedCcW2YqeftLCMDAQn5EUZQvUcfQo~tplv-dy-360p.jpeg?lk3s=138a59ce&x-expires=1793822400&x-signature=YP8SABvV2MvuIRp84Pwe6pfa9jg%3D&from=327834062&s=PackSourceEnum_AWEME_DETAIL&se=false&sc=origin_cover&biz_tag=pcweb_cover&l=2026102204075679B455C0AA4FB784B0B7"
+        ]
+      }
+    }
+  }
+}
