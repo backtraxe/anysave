@@ -67,7 +67,10 @@ class MainActivity : Activity() {
         statusText = findViewById(R.id.statusText)
         webView = findViewById(R.id.webView)
 
-        WebView.setWebContentsDebuggingEnabled(true)
+        if (BuildConfig.DEBUG) {
+            // Never expose the production WebView to DevTools debugging.
+            WebView.setWebContentsDebuggingEnabled(true)
+        }
 
         extractor = PageExtractor(this, webView) { snapshot -> showResult(snapshot) }
         preview = PreviewPanel(this, findViewById(R.id.previewRoot)) { closePreview() }

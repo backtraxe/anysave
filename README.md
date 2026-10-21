@@ -1,5 +1,7 @@
 # AnySave
 
+[![CI](https://github.com/backtraxe/anysave/actions/workflows/ci.yml/badge.svg)](https://github.com/backtraxe/anysave/actions/workflows/ci.yml)
+
 > Pick, preview and keep media from any web page.
 
 从任意网页里，先看、再选、再存。
@@ -103,6 +105,27 @@ cp local.properties.example local.properties   # 改成你本机的 SDK 路径
 ```
 
 APK 输出：`app/build/outputs/apk/debug/app-debug.apk`。
+
+打包一个按「应用名 + 版本号」命名的发布 APK：
+
+```bash
+./gradlew :app:namedReleaseApk
+# -> dist/AnySave-0.4.0.apk（有本机签名配置时已签名，否则带 -unsigned 后缀）
+```
+
+## CI/CD 与发布
+
+- **CI**（[`.github/workflows/ci.yml`](.github/workflows/ci.yml)）：push 到 `main` / PR 时
+  跑单元测试、构建 debug 与 release APK，并上传按版本命名的 debug APK artifact。
+- **Release**（[`.github/workflows/release.yml`](.github/workflows/release.yml)）：
+  推送 `v*` 标签（或手动 dispatch）时构建 release APK；配置签名 secrets 后产出已签名
+  `AnySave-<version>.apk` 并自动创建 GitHub Release，未配置则产出 `-unsigned` 包。
+- **签名**：本地用 gitignore 的 `keystore.properties` + keystore；CI 用
+  `RELEASE_KEYSTORE_BASE64` / `RELEASE_STORE_PASSWORD` / `RELEASE_KEY_ALIAS` /
+  `RELEASE_KEY_PASSWORD` 四个 secrets。详细步骤见
+  [docs/releasing.md](docs/releasing.md)。
+- release 包不包含调试入口（demo Activity 只在 debug 源集），且 WebView 调试仅在
+  debug 构建开启。
 
 ## Telegram 配置
 

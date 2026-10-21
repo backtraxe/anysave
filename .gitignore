@@ -11,3 +11,6 @@ captures/
 *.keystore
 *.jks
 keystore.properties
+
+# 发布产物
+dist/
