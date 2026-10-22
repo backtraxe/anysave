@@ -335,6 +335,23 @@ Settings「B站画质」：Auto / 1080P / 720P / 480P
   HttpOnly Cookie 也能通过同名过期覆盖。其它站点完全不受影响。
 - 粘贴框为空时，导入按钮会读取系统剪贴板作为输入（无需额外权限）。
 
+### 提取超时的登录态诊断（M16）
+
+```
+PageExtractor 结束但 post==null（timeout 或 captured-but-unparsed）
+   → MainActivity.diagnoseTimeoutLogin()
+        · SiteReader.forUrl(currentUrl).id ∈ {douyin,bilibili,xiaohongshu} ?
+        · SiteLoginCheck（隐藏 1×1 WebView，共享 Cookie，桌面 UA）加载
+          douyin user/self / bilibili nav / xhs explore
+        · 复用 LoginSignals 解析 → 状态栏替换为具体结论
+   → 未登录：“You are not logged in to <site>…”（引导去设置登录）
+   → 已登录：“<site> looks logged in. The site may have changed…”（避免误判）
+```
+
+- 只在失败后跑一次，不拖慢正常提取；探测用独立 WebView，不影响已加载页面；
+  完成/取消/Activity 销毁时立刻销毁，单站 12s 超时。
+- 与设置页登录检测共用同一批信号，但只探测当前站。
+
 ### 登录态检测（M11）
 
 ```

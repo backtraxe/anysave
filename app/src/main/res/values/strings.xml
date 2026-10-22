@@ -10,6 +10,12 @@
     <string name="status_invalid_url">Please paste a valid http(s) link.</string>
     <string name="status_parsed">Parsed %1$d item(s) in %2$d ms</string>
     <string name="status_parse_failed">Captured %1$d response(s) but found no media in them. Open a post page (video or note) and try again.</string>
+    <string name="status_login_checking">Checking login state…</string>
+    <string name="status_login_logged_in">%1$s looks logged in. The site may have changed or the response was empty.</string>
+    <string name="status_login_logged_out">You are not logged in to %1$s. Open Settings → Login, sign in, then retry.</string>
+    <string name="status_timeout_checking">Timed out. Checking login state…</string>
+    <string name="status_timeout_logged_in">Timed out, but you are logged in to %1$s. The site may have changed (or the network is slow).</string>
+    <string name="status_timeout_logged_out">You are not logged in to %1$s. Open Settings → Login, sign in, then retry.</string>
     <string name="status_timeout">No matching response captured (timeout). If this page needs a login, use Settings → Login first.</string>
     <string name="status_direct_failed">Could not extract this page (dedicated extractor failed).</string>
     <string name="status_login_opened">Login page opened. Scan the QR code with your phone, then go back and paste a post link.</string>

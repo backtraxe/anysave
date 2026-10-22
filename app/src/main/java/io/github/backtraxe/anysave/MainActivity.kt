@@ -32,6 +32,7 @@ import io.github.backtraxe.anysave.reader.DirectExtractors
 import io.github.backtraxe.anysave.reader.ReaderOverrides
 import io.github.backtraxe.anysave.settings.BilibiliQuality
 import io.github.backtraxe.anysave.settings.BilibiliQualityConfig
+import io.github.backtraxe.anysave.session.SiteLoginCheck
 import io.github.backtraxe.anysave.reader.SiteReader
 import io.github.backtraxe.anysave.ui.PreviewPanel
 
@@ -45,6 +46,7 @@ class MainActivity : Activity() {
     private lateinit var urlInput: EditText
     private lateinit var statusText: TextView
     private lateinit var webView: WebView
+    private lateinit var siteLoginCheck: SiteLoginCheck
     private lateinit var extractor: PageExtractor
     private lateinit var preview: PreviewPanel
 
@@ -99,6 +101,7 @@ class MainActivity : Activity() {
             }
         }
 
+        siteLoginCheck = SiteLoginCheck(this)
         extractor = PageExtractor(this, webView) { snapshot -> showResult(snapshot) }
         preview = PreviewPanel(this, findViewById(R.id.previewRoot)) { closePreview() }
         preview.setSaveActions(object : PreviewPanel.SaveActions {
@@ -167,6 +170,7 @@ class MainActivity : Activity() {
         }
         closePreview()
         hideKeyboard()
+        if (::siteLoginCheck.isInitialized) siteLoginCheck.cancel()
         statusText.text = getString(R.string.status_extracting)
         extractor.extract(url, reader)
     }
@@ -178,6 +182,7 @@ class MainActivity : Activity() {
     private fun startDirectExtraction(extractor: DirectExtractor, url: String) {
         closePreview()
         hideKeyboard()
+        if (::siteLoginCheck.isInitialized) siteLoginCheck.cancel()
         statusText.text = getString(R.string.status_extracting)
         val startedAt = SystemClock.elapsedRealtime()
         Thread({
@@ -239,6 +244,7 @@ class MainActivity : Activity() {
             snapshot.hits.isEmpty() -> {
                 statusText.text = getString(R.string.status_timeout)
                 Log.i(TAG, "timeout: no matching response in ${snapshot.elapsedMs}ms")
+                diagnoseTimeoutLogin()
             }
 
             else -> {
@@ -251,6 +257,7 @@ class MainActivity : Activity() {
                 snapshot.hits.forEach {
                     Log.i(TAG, "hit ${it.via} status=${it.status} len=${it.length} ${it.url}")
                 }
+                diagnoseTimeoutLogin()
             }
         }
     }
@@ -308,6 +315,32 @@ class MainActivity : Activity() {
         startSave(items)
     }
 
+    /**
+     * A timeout often means "not logged in" (douyin) or a site change. Probe
+     * the current site's session and replace the generic timeout text with a
+     * concrete next step.
+     */
+    private fun diagnoseTimeoutLogin() {
+        val url = urlInput.text?.toString()?.trim().orEmpty()
+        val readerId = SiteReader.forUrl(url)?.id ?: return
+        val label = when (readerId) {
+            "douyin" -> getString(R.string.login_douyin)
+            "bilibili" -> getString(R.string.login_bilibili)
+            "xiaohongshu" -> getString(R.string.login_xiaohongshu)
+            else -> return
+        }
+        val siteId = readerId
+        statusText.text = getString(R.string.status_login_checking)
+        siteLoginCheck.check(siteId) { result ->
+            if (isFinishing || isDestroyed) return@check
+            statusText.text = when (result?.loggedIn) {
+                true -> getString(R.string.status_login_logged_in, label)
+                false -> getString(R.string.status_login_logged_out, label)
+                else -> getString(R.string.status_timeout)
+            }
+        }
+    }
+
     private fun openAlbum() {
         val state = SaveStateBus.state() as? SaveState.Finished ?: return
         val uri = state.firstUri?.let(Uri::parse) ?: return
@@ -338,6 +371,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        if (::siteLoginCheck.isInitialized) siteLoginCheck.cancel()
         extractor.release()
         webView.destroy()
         super.onDestroy()

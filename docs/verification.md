@@ -659,3 +659,24 @@ daemon `127.0.0.1:10086`）在用户真实浏览器里读取会话，再用 debu
 
 - 小红书视频笔记在桌面页的完整保存（本次验证的是 12 张图集）
 - 极端风控下桌面页是否仍会 sec（站点策略不可控）
+
+## 实验 AC：超时后的登录态诊断（M16）
+
+| 场景 | 结果 |
+|---|---|
+| 抖音未登录 + 提取视频 | detail 请求返回 200 空体（3 条），原本显示「Captured … but found no media」；诊断后状态变为 `You are not logged in to Douyin. Open Settings → Login, sign in, then retry.` |
+| 抖音已登录 + 提取 profile 页 | 页面不产生 detail XHR，25s 超时；诊断状态 `Douyin looks logged in. The site may have changed or the response was empty.`，同时 WebView 显示已登录的「背影」主页 |
+| 探测资源 | 隐藏 1×1 WebView，共享 Cookie、桌面 UA；结束即销毁；不读取/打印 Cookie 值 |
+| 回归 | 正常提取（douyin 视频带登录）仍直接出面板，不触发诊断；诊断只在 post==null 时执行 |
+
+## 实现结论（M16 追加）
+
+60. 「超时/空响应」是登录态最典型的失败表现：失败后做一次站点级登录探测，比让用户猜
+    「为什么没解析出来」有效得多。
+61. 诊断必须区分「未登录」与「已登录但站点改版/响应为空」，否则会把站点问题误报成登录问题。
+62. 探测用独立的隐藏 WebView、只在失败后执行，避免给正常提取增加延迟或影响当前页面。
+
+## 未验证项（M16 追加）
+
+- B 站/小红书超时诊断的真机路径（代码共用；本次只实测抖音两分支）
+- 站点挑战页（captcha/jsvm）与「未登录」的进一步区分
