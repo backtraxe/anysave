@@ -563,3 +563,32 @@ daemon `127.0.0.1:10086`）在用户真实浏览器里读取会话，再用 debu
 - 抖音 1080P/更高画质（登录后 playinfo 档位未逐档核对，当前保存的是解析器选出的最高 AVC 档）
 - 小红书登录态下的视频笔记/图集混合形态
 - 真实扫码登录路径（本次用已登录浏览器的会话注入代替）
+
+## 实验 Y：Cookie 导入（M12）
+
+| 场景 | 结果 |
+|---|---|
+| UI | 登录卡片新增粘贴框 + 「导入抖音 / 导入B站 / 导入小红书」；与原有扫码按钮并存 |
+| 格式解析（单测 4 条） | `Cookie:` 请求头（含 `k=v` 内的 `=`）、Netscape（含 `#HttpOnly_` 前缀）、Cookie-Editor JSON 数组与 `{"cookies":[…]}` 包裹、空/非法输入拒绝 |
+| 真实小红书导入 | 把 984 字符的 `Cookie:` 头分两段输入 → 导入后 DB 中 17/17 条 Cookie 名称与值完全一致；状态显示 `Xiaohongshu: Logged in · 山水之间` |
+| 真实 B 站导入 | 短 `Cookie:` 头（SESSDATA/bili_jct/DedeUserID/DedeUserID__ckMd5/buvid3）→ `Bilibili: Logged in · Backtraxe`；提取 BV1CpWw6BEAD 得到 1080P 并保存：9,384,650 B，ffprobe h264 **1920×1080** + AAC 17.55 s，解码 rc=0 |
+| 真实抖音导入 | 短头（sessionid/ttwid/UIFID 等，分两段输入）→ `Douyin: Logged in · 背影` |
+| 扫码登录回归 | 点「抖音」登录按钮 → `opened login page https://www.douyin.com/`，桌面登录页正常打开，状态提示扫码 |
+| 环境观察 | 小红书在当天大量自动化请求后，无论 CDP 注入还是导入会话，笔记页都返回 `/404/sec_*` 风控页（同一链接在真实 Chrome 里正常）；这是站点风控/环境问题，不是导入本身的失败。B站 3.5 分钟长视频的 1080P 下载出现两次 HTTP 503（短视频 1080P 正常；宿主 curl 同 URL 200），疑似 CDN 边缘/限流 |
+
+## 实现结论（M12 追加）
+
+47. 浏览器登录态与 App 会话之间最实用的桥梁是「导出 → 粘贴导入」：不需要导出文件、
+    不需要 App 读浏览器 Cookie（macOS TCC 也读不到 Chrome 的库）。
+48. 导入必须做站点域校验与默认域补全：`Cookie:` 头没有 domain，JSON/Netscape 可能混入
+    其它站点；`SessionManager` 按站点白名单过滤后再 `setCookie`。
+49. 导入与扫码共用同一个 CookieManager，因此登录态检测、提取、下载全部自动受益；
+    导入后重新探测即可看到账号名。
+50. 风控/CDN 是外部变量：小红书 404 sec 页与 B站长视频 503 均在真实浏览器/宿主 curl
+    对照下排除应用逻辑；报告需区分「功能失败」与「站点风控/边缘限流」。
+
+## 未验证项（M12 追加）
+
+- 小红书在风控解除后的完整导入→提取路径（导入与登录态已验证，提取被 sec 页拦截）
+- 抖音导入后的完整提取（登录态已验证；提取路径此前用 CDP 注入会话验证过）
+- Cookie-Editor JSON 的端到端 UI 导入（解析有单测；UI 实测用的是 header/Netscape）

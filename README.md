@@ -12,7 +12,7 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 
 ## 状态
 
-**M11.2 真实登录态验证 + 抖音重定向修复**（可编译、可运行、已端到端验证）。完整链路：
+**M12 Cookie 导入 + 扫码登录双通道**（可编译、可运行、已端到端验证）。完整链路：
 
 - 输入链接 → WebView 打开页面
 - 文档开始时注入响应监听（`app/src/main/res/raw/hook.js`），命中时连同响应体一起留下
@@ -34,6 +34,9 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 - **登录/会话（M9）**：设置页「登录」用**站点桌面版登录页**（App 内 WebView、
   手机扫码），登录态就是 WebView 的 Cookie，只存在应用私有目录；可一键清除
   所有站点登录态。抖音提取必须登录，B 站登录后可拿更高清晰度
+- **Cookie 导入（M12）**：设置页「登录」卡片支持把浏览器导出的 Cookie（Cookie-Editor
+  JSON / `Cookie:` 请求头 / Netscape）粘贴导入到 App 的 WebView 会话，按站点选择写入；
+  与扫码登录并存（两条路都可用），导入后自动重新检测登录态
 - **登录态检测（M11）**：设置页打开时用一个隐藏 WebView 依次探测三站登录状态，
   显示 `抖音：已登录 · 昵称 / B站：未登录 / 小红书：未登录`；清除登录态后自动刷新。
   探测只读页面状态，不读取、不打印 Cookie 值
@@ -71,6 +74,7 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 | 微博图文（3 图） | 3.2 s 解析出 3 项（作者杨伊琳10）；保存 3 张原图 229,606 / 256,742 / 221,566 B，MediaStore 尺寸正确、无 pending |
 | 微博视频（1 条） | 2.0 s 解析出 1 项；保存 1,896,528 B MP4（h264 720×1280 + AAC 44.1 kHz 立体声，13.72 s） |
 | 登录态检测 | 清空会话后三站均显示「未登录」；用真实浏览器会话后 `Douyin: Logged in · 背影` / `Bilibili: Logged in · Backtraxe` / `Xiaohongshu: Logged in · 山水之间`；清除后恢复未登录；探测不输出 Cookie 值 |
+| Cookie 导入 | 真实 B站/小红书/抖音 Cookie 通过 UI 导入：小红书 17/17 条名称与值完全写入；B站导入后登录态 `Bilibili: Logged in · Backtraxe` 并能提取/保存 1080P（短视频 9.38 MB，h264 1920×1080）；抖音导入后 `Douyin: Logged in · 背影`；扫码登录按钮仍能打开各站桌面登录页 |
 | 登录专属能力 | B 站登录后同一视频从 480P/26.3 MB 提升到 **1080P/75.2 MB**（h264 1920×1080 + AAC 212.31 s）；小红书真实笔记 6 项；抖音登录后重定向到 `m.douyin.com/share` 的问题已修复（桌面 UA + origin hook 别名） |
 | AcFun 图文（3 图） | 2.0 s 解析出 3 项（作者 AcFun活动）；保存 1,658,046 B PNG + 2,256,625 B PNG + 2,642,498 B JPEG（8000×4500 封面，容器嗅探把 .png 纠正为 .jpg），MediaStore 三行 pending 0 |
 | 登录/会话 | 设置页登录卡片打开桌面版页面：抖音标题「抖音-记录美好生活」、B 站「哔哩哔哩…」、小红书直接跳 `/login` 且有扫码入口；注入的会话 Cookie 重启应用后仍在（3/3），清除后 3 站 Cookie 行数归 0 |
@@ -132,6 +136,7 @@ app/src/main/
 │   ├── reader/AcfunReader.kt         A 站文章 reader（SSR articleInfo）
 │   ├── reader/AcfunParser.kt         文章 parts HTML → 原图（纯 JVM，可单测）
 │   ├── session/LoginSignals.kt       三站登录信号解析（纯 JVM，可单测）
+│   ├── session/CookieImport.kt       浏览器 Cookie 解析（JSON/请求头/Netscape，可单测）
 │   ├── session/SessionManager.kt     登录站点入口 + 清除全部会话
 │   ├── model/MediaItem.kt           MediaItem / PostMedia
 │   ├── model/MediaHit.kt            MediaHit / ExtractionSnapshot
@@ -150,7 +155,7 @@ app/src/main/
 │   ├── telegram/TelegramClient.kt   Bot API：getMe / sendMessage / 相册上传
 │   └── ui/                          预览面板、网格、缩略图加载、全屏查看
 └── res/raw/hook.js                  fetch / XHR 响应监听（页面上下文运行）
-app/src/test/                        解析 / 命名 / 容器识别 / Telegram / pack / YouTube 选流 / 登录信号（71 条）
+app/src/test/                        解析 / 命名 / 容器识别 / Telegram / pack / YouTube 选流 / 登录信号 / Cookie 导入（75 条）
 docs/
 ├── architecture.md                  设计说明
 └── verification.md                  关键假设的验证记录
@@ -163,7 +168,7 @@ docs/
 ```bash
 cp local.properties.example local.properties   # 改成你本机的 SDK 路径
 ./gradlew :app:assembleDebug
-./gradlew :app:testDebugUnitTest               # 71 条单测，含真实响应 fixture
+./gradlew :app:testDebugUnitTest               # 75 条单测，含真实响应 fixture
 ```
 
 APK 输出：`app/build/outputs/apk/debug/app-debug.apk`。
@@ -212,6 +217,17 @@ APK 输出：`app/build/outputs/apk/debug/app-debug.apk`。
 登录态完全保存在本机 WebView：不导出 Cookie、不写自定义 Cookie 文件、不打印到日志。
 YouTube 走专用提取器，不需要登录；微博公开内容也不需要登录。
 
+## Cookie 导入
+
+不想在 App 里重新扫码时，可以把浏览器里已登录的 Cookie 导入进来：
+
+1. 在浏览器用 **Cookie-Editor** 导出某个站点（JSON），或从开发者工具复制 `Cookie:` 请求头；
+2. 设置 → 登录 → 把内容粘贴到输入框，点对应的「导入抖音 / 导入B站 / 导入小红书」；
+3. 导入成功后会自动重新检测登录态（例如 `Bilibili: Logged in · Backtraxe`）。
+
+支持 Cookie-Editor JSON、`Cookie:` 请求头、Netscape 三种格式；Cookie 只写入本应用
+WebView 的会话，不落自定义文件、不打印日志。扫码登录仍然保留，两者可以混用。
+
 ## Reader 热更新
 
 站点改版时，不一定要发新版 APK：设置页底部的「Reader updates」卡片可以拉取一个
@@ -251,6 +267,7 @@ reader pack JSON，替换内置 reader 的**页面提取脚本**与**响应匹�
 - **M9** 登录/会话管理（站内桌面登录页 + 清除登录态）✅
 - **M10** AcFun 图文 reader（SSR articleInfo）✅
 - **M11** 登录态检测（抖音/B站/小红书，设置页自动探测）✅
+- **M12** Cookie 导入（浏览器导出 → App 内粘贴导入）✅
 
 ## 已知限制
 

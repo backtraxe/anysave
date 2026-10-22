@@ -13,6 +13,9 @@
     <string name="status_timeout">No matching response captured (timeout). If this page needs a login, use Settings → Login first.</string>
     <string name="status_direct_failed">Could not extract this page (dedicated extractor failed).</string>
     <string name="status_login_opened">Login page opened. Scan the QR code with your phone, then go back and paste a post link.</string>
+    <string name="cookie_import_empty">Paste cookies first.</string>
+    <string name="cookie_import_done">Imported %1$d cookie(s).</string>
+    <string name="cookie_import_failed">Could not import cookies (check the export format).</string>
     <string name="login_state_checking">Checking login state…</string>
     <string name="login_state_logged_in">Logged in</string>
     <string name="login_state_logged_in_as">Logged in · %1$s</string>

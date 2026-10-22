@@ -46,6 +46,10 @@ class TelegramSettingsActivity : Activity() {
     private lateinit var loginXiaohongshu: View
     private lateinit var clearSessions: View
     private lateinit var sessionsStatus: TextView
+    private lateinit var cookieImportInput: EditText
+    private lateinit var importDouyinCookies: View
+    private lateinit var importBilibiliCookies: View
+    private lateinit var importXiaohongshuCookies: View
 
     private lateinit var probeWebView: WebView
     private val probeHandler = Handler(Looper.getMainLooper())
@@ -77,6 +81,10 @@ class TelegramSettingsActivity : Activity() {
         loginXiaohongshu = findViewById(R.id.loginXiaohongshu)
         clearSessions = findViewById(R.id.clearSessions)
         sessionsStatus = findViewById(R.id.sessionsStatus)
+        cookieImportInput = findViewById(R.id.cookieImportInput)
+        importDouyinCookies = findViewById(R.id.importDouyinCookies)
+        importBilibiliCookies = findViewById(R.id.importBilibiliCookies)
+        importXiaohongshuCookies = findViewById(R.id.importXiaohongshuCookies)
         setupProbeWebView()
         probeHandler.post { refreshLoginStates() }
 
@@ -95,6 +103,9 @@ class TelegramSettingsActivity : Activity() {
         loginBilibili.setOnClickListener { openLoginPage(SessionManager.SITES[1].url) }
         loginXiaohongshu.setOnClickListener { openLoginPage(SessionManager.SITES[2].url) }
         clearSessions.setOnClickListener { clearAllSessions() }
+        importDouyinCookies.setOnClickListener { importCookies("douyin") }
+        importBilibiliCookies.setOnClickListener { importCookies("bilibili") }
+        importXiaohongshuCookies.setOnClickListener { importCookies("xiaohongshu") }
     }
 
     private fun currentConfig(): TelegramConfig = TelegramConfig(
@@ -324,6 +335,26 @@ class TelegramSettingsActivity : Activity() {
                 .addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP),
         )
         finish()
+    }
+
+    private fun importCookies(siteId: String) {
+        val text = cookieImportInput.text?.toString().orEmpty()
+        if (text.isBlank()) {
+            showSessionsStatus(getString(R.string.cookie_import_empty))
+            return
+        }
+        val imported = try {
+            SessionManager.importCookies(siteId, text)
+        } catch (t: Throwable) {
+            0
+        }
+        if (imported <= 0) {
+            showSessionsStatus(getString(R.string.cookie_import_failed))
+            return
+        }
+        showSessionsStatus(getString(R.string.cookie_import_done, imported))
+        cookieImportInput.setText("")
+        probeHandler.postDelayed({ refreshLoginStates() }, 1_200)
     }
 
     private fun clearAllSessions() {

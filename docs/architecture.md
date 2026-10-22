@@ -282,6 +282,24 @@ MainActivity.handleExternalOpenUrl(url)
   会一并清掉微博访客 Cookie 等。
 - 不提供「已登录/未登录」状态：HttpOnly Cookie（如 SESSDATA）无法通过 CookieManager
   枚举，判断会失真；以页面与提取结果为准。
+### Cookie 导入（M12）
+
+```
+Settings 登录卡片 → cookieImportInput（粘贴文本）+ 三站导入按钮
+   → CookieImport.parse（JSON / Cookie header / Netscape，纯 JVM）
+   → SessionManager.importCookies(siteId, entries)
+        · 校验 domain 属于该站（douyin/bilibili/xiaohongshu）
+        · CookieManager.setCookie("https://<host>/", "name=value; Domain=…; Path=…; Secure; HttpOnly")
+        · flush()；返回成功条数
+   → 显示 "Imported N cookie(s)."，1.2s 后自动重跑登录态检测
+```
+
+- 与扫码登录并存：扫码路径打开站点桌面登录页，导入路径直接写 WebView 会话；
+  两者最终都落到同一个 CookieManager，检测/提取逻辑不变。
+- 支持 Cookie-Editor JSON（含 domain/secure/httpOnly）、`Cookie:` 请求头（domain 用站点默认值）、
+  Netscape 文件行（含 `#HttpOnly_` 前缀）。
+- 导入不会清除旧 Cookie，同名 Cookie 覆盖；「清除所有登录态」仍可整体重置。
+
 ### 登录态检测（M11）
 
 ```
