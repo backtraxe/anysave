@@ -1,34 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Download/save mark: cream arrow dropping into a cream pocket, coral spark.
-     Teal background + cream + coral, matching the in-app palette. -->
+<!-- Minimal download mark: one arrow + one tray line. Cream on brand teal. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Arrow shaft -->
+    <!-- Shaft + head share the same stroke weight and round caps. -->
     <path
-        android:pathData="M54,26 L54,52"
-        android:strokeColor="#FFF6E9"
-        android:strokeLineCap="round"
-        android:strokeWidth="9" />
-
-    <!-- Arrow head -->
-    <path
-        android:pathData="M43,42 L54,53 L65,42"
+        android:pathData="M54,30 V56 M40,44 L54,58 L68,44"
         android:strokeColor="#FFF6E9"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:strokeWidth="9" />
+        android:strokeWidth="10" />
 
-    <!-- Pocket: solid cream tray with rounded bottom corners, open top -->
+    <!-- Tray: a single rounded line instead of a box/glyph. -->
     <path
-        android:fillColor="#FFF6E9"
-        android:pathData="M33,60 H75 V70 A8,8 0 0 1 67,78 H41 A8,8 0 0 1 33,70 Z" />
-
-    <!-- Coral spark (same accent used for selection in the app UI) -->
-    <path
-        android:fillColor="#F9735B"
-        android:pathData="M73,29 m-4,0 a4,4 0 1 0 8,0 a4,4 0 1 0 -8,0" />
+        android:pathData="M36,74 H72"
+        android:strokeColor="#FFF6E9"
+        android:strokeLineCap="round"
+        android:strokeWidth="10" />
 </vector>
