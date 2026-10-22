@@ -7,6 +7,7 @@ import android.widget.EditText
 import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
+import io.github.backtraxe.anysave.reader.ReaderPackRepository
 import io.github.backtraxe.anysave.telegram.TelegramClient
 import io.github.backtraxe.anysave.telegram.TelegramConfig
 import io.github.backtraxe.anysave.telegram.TelegramProtocol
@@ -28,6 +29,10 @@ class TelegramSettingsActivity : Activity() {
     private lateinit var saveButton: View
     private lateinit var backButton: View
     private lateinit var status: TextView
+    private lateinit var readerPackUrlInput: EditText
+    private lateinit var readerPackCheckButton: View
+    private lateinit var readerPackStatus: TextView
+    private lateinit var readerPackRepository: ReaderPackRepository
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -40,15 +45,22 @@ class TelegramSettingsActivity : Activity() {
         saveButton = findViewById(R.id.settingsSaveButton)
         backButton = findViewById(R.id.settingsBack)
         status = findViewById(R.id.settingsStatus)
+        readerPackUrlInput = findViewById(R.id.readerPackUrlInput)
+        readerPackCheckButton = findViewById(R.id.readerPackCheckButton)
+        readerPackStatus = findViewById(R.id.readerPackStatus)
+        readerPackRepository = ReaderPackRepository(this)
 
         val saved = TelegramSettings.load(this)
         tokenInput.setText(saved.botToken)
         chatInput.setText(saved.chatId)
         autoUpload.isChecked = saved.autoUpload
 
+        readerPackUrlInput.setText(readerPackRepository.savedUrl())
+
         backButton.setOnClickListener { finish() }
         saveButton.setOnClickListener { saveSettings() }
         testButton.setOnClickListener { sendTestMessage() }
+        readerPackCheckButton.setOnClickListener { checkReaderPack() }
     }
 
     private fun currentConfig(): TelegramConfig = TelegramConfig(
@@ -110,6 +122,44 @@ class TelegramSettingsActivity : Activity() {
                 )
             }
         }.start()
+    }
+
+    private fun checkReaderPack() {
+        val url = readerPackUrlInput.text?.toString()?.trim().orEmpty()
+        if (url.isBlank()) {
+            // Blank URL + check removes an applied pack (no dedicated button needed).
+            val removed = readerPackRepository.clear()
+            showReaderPackStatus(
+                getString(R.string.settings_reader_pack_updated, removed.message),
+            )
+            return
+        }
+        if (!url.startsWith("https://") && !url.startsWith("http://")) {
+            showReaderPackStatus(getString(R.string.settings_reader_pack_invalid))
+            return
+        }
+        if (readerPackCheckButton.isEnabled.not()) return
+        readerPackCheckButton.isEnabled = false
+        showReaderPackStatus(getString(R.string.settings_reader_pack_check) + "…")
+        val repository = readerPackRepository
+        Thread {
+            val result = repository.refresh(url)
+            runOnUiThread {
+                readerPackCheckButton.isEnabled = true
+                val text = if (result.ok) {
+                    getString(R.string.settings_reader_pack_updated, result.message)
+                } else {
+                    getString(R.string.settings_reader_pack_failed, result.message)
+                }
+                showReaderPackStatus(text)
+                if (result.ok) readerPackUrlInput.setText(repository.savedUrl())
+            }
+        }.start()
+    }
+
+    private fun showReaderPackStatus(text: String) {
+        readerPackStatus.text = text
+        readerPackStatus.visibility = View.VISIBLE
     }
 
     private fun showStatus(text: String) {

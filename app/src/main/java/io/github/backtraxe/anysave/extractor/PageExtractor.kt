@@ -8,12 +8,14 @@ import android.os.Looper
 import android.os.SystemClock
 import android.util.Log
 import android.webkit.WebView
+import androidx.webkit.ScriptHandler
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import io.github.backtraxe.anysave.R
 import io.github.backtraxe.anysave.model.ExtractionSnapshot
 import io.github.backtraxe.anysave.model.MediaHit
 import io.github.backtraxe.anysave.model.PostMedia
+import io.github.backtraxe.anysave.reader.ReaderOverrides
 import io.github.backtraxe.anysave.reader.SiteReader
 import org.json.JSONArray
 import org.json.JSONObject
@@ -40,12 +42,21 @@ class PageExtractor(
 ) {
     private val appContext = context.applicationContext
     private val handler = Handler(Looper.getMainLooper())
-    private val installedOrigins = mutableSetOf<String>()
+    private val installedHooks = mutableMapOf<String, InstalledHook>()
     private val hookScript: String = readRaw(R.raw.hook)
     private val defaultUserAgent: String = webView.settings.userAgentString
+    private data class InstalledHook(
+        val handler: ScriptHandler,
+        val patterns: List<String>,
+        val script: String,
+    )
+
     private var generation = 0
     private var startedAt = 0L
     private var reader: SiteReader? = null
+    private var activePatterns: List<String> = emptyList()
+    private var capturedHitCount = 0
+    private var embeddedAfterHitTried = false
     private var finished = false
     private var lastEmbeddedAttemptAt = 0L
 
@@ -67,16 +78,26 @@ class PageExtractor(
         webView.settings.userAgentString = reader.pageUserAgent ?: defaultUserAgent
 
         val origin = originOf(url) ?: reader.origin
-        if (installedOrigins.add(origin)) {
-            val patterns = JSONArray(reader.responsePatterns).toString()
-            val script = "window.__anysavePatterns=$patterns;\n$hookScript"
-            WebViewCompat.addDocumentStartJavaScript(webView, script, setOf(origin))
-            Log.i(TAG, "reader=${reader.id} hook installed for $origin")
+        activePatterns = ReaderOverrides.patterns(reader)
+        val patternsJson = JSONArray(activePatterns).toString()
+        val script = "window.__anysavePatterns=$patternsJson;\n$hookScript"
+        val previous = installedHooks[origin]
+        if (previous == null || previous.patterns != activePatterns || previous.script != script) {
+            // A reader-pack update can change the patterns/script: replace the
+            // document-start hook so the next navigation uses the new pack.
+            if (previous != null) {
+                runCatching { previous.handler.remove() }
+            }
+            val handler = WebViewCompat.addDocumentStartJavaScript(webView, script, setOf(origin))
+            installedHooks[origin] = InstalledHook(handler, activePatterns, script)
+            Log.i(TAG, "reader=${reader.id} hook installed for $origin (hot=${previous != null})")
         }
 
         generation += 1
         finished = false
         lastEmbeddedAttemptAt = 0L
+        capturedHitCount = 0
+        embeddedAfterHitTried = false
         this.reader = reader
         startedAt = SystemClock.elapsedRealtime()
         // Drop anything captured on the previous page before navigating.
@@ -103,10 +124,27 @@ class PageExtractor(
             val elapsed = SystemClock.elapsedRealtime() - startedAt
             val currentReader = reader
             when {
-                snapshot.hits.isNotEmpty() -> captureBody(gen, snapshot)
+                // New captured responses: parse them; captureBody falls back to
+                // the embedded script when they turn out not to be post payloads.
+                snapshot.hits.size > capturedHitCount -> {
+                    capturedHitCount = snapshot.hits.size
+                    captureBody(gen, snapshot)
+                }
+
+                // Captured bodies were not post payloads and embedded fallback
+                // already ran: keep waiting for new hits / the timeout instead
+                // of re-pulling the same bodies every poll.
+                snapshot.hits.isNotEmpty() && embeddedAfterHitTried ->
+                    if (elapsed >= TIMEOUT_MS) {
+                        finish(snapshot.copy(elapsedMs = elapsed))
+                    } else {
+                        handler.postDelayed({ poll(gen) }, POLL_INTERVAL_MS)
+                    }
+
                 elapsed >= TIMEOUT_MS -> finish(snapshot.copy(elapsedMs = elapsed))
-                currentReader?.embeddedPayloadScript != null &&
-                    embeddedDue(currentReader, elapsed) ->
+                currentReader != null &&
+                    ReaderOverrides.embeddedScript(currentReader) != null &&
+                    embeddedDue(elapsed) ->
                     readEmbeddedPayload(gen, snapshot, currentReader)
 
                 else -> handler.postDelayed({ poll(gen) }, POLL_INTERVAL_MS)
@@ -124,7 +162,22 @@ class PageExtractor(
                 TAG,
                 "captured ${snapshot.hits.size} response(s) in ${elapsed}ms, post=${post?.items?.size}",
             )
-            finish(snapshot.copy(elapsedMs = elapsed, post = post))
+            if (post != null && !post.isEmpty) {
+                finish(snapshot.copy(elapsedMs = elapsed, post = post))
+                return@evaluateJavascript
+            }
+            val currentReader = reader
+            val hasEmbedded = currentReader != null &&
+                ReaderOverrides.embeddedScript(currentReader) != null
+            if (currentReader != null && hasEmbedded && !embeddedAfterHitTried) {
+                // A reader pack may have made a generic XHR match the pattern;
+                // a real page can still have usable embedded/data. Try it once.
+                embeddedAfterHitTried = true
+                Log.i(TAG, "captured bodies had no post, trying embedded script")
+                readEmbeddedPayload(gen, snapshot, currentReader)
+            } else {
+                finish(snapshot.copy(elapsedMs = elapsed, post = null))
+            }
         }
     }
 
@@ -139,7 +192,7 @@ class PageExtractor(
         reader: SiteReader,
     ) {
         lastEmbeddedAttemptAt = SystemClock.elapsedRealtime()
-        val script = reader.embeddedPayloadScript ?: return
+        val script = ReaderOverrides.embeddedScript(reader) ?: return
         webView.evaluateJavascript(script) { raw ->
             if (gen != generation) return@evaluateJavascript
             val payload = jsonString(raw)?.takeIf { it.isNotBlank() }
@@ -231,9 +284,9 @@ class PageExtractor(
      * (douyin notes). Retry while the page is still hydrating instead of
      * trying exactly once.
      */
-    private fun embeddedDue(reader: SiteReader, elapsed: Long): Boolean {
+    private fun embeddedDue(elapsed: Long): Boolean {
         val sinceLast = SystemClock.elapsedRealtime() - lastEmbeddedAttemptAt
-        return if (reader.responsePatterns.isEmpty()) {
+        return if (activePatterns.isEmpty()) {
             elapsed >= EMBEDDED_PRIMARY_AFTER_MS && sinceLast >= EMBEDDED_RETRY_MS
         } else {
             elapsed >= EMBEDDED_FALLBACK_AFTER_MS && sinceLast >= EMBEDDED_FALLBACK_RETRY_MS

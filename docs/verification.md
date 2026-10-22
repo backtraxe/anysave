@@ -363,3 +363,34 @@ M2 的保存只消费页面已经收到的 CDN 直链。先验证这些直链本
 - B 站登录/大会员下的 720P/1080P 渲染（本次 Cookie 未登录，只有 480P/360P）
 - B 站多 P（`?p=`）与短链 `b23.tv`
 - YouTube（需要专用提取库，明确不在当前架构内）
+
+## 实验 R：reader 热更新（M7）
+
+用一个本地 mock pack 服务器验证「不重装应用即可替换 reader 的页面脚本/响应规则」。
+
+| 场景 | 结果 |
+|---|---|
+| pack 准备 | `{"version":1,"readers":[{"id":"xiaohongshu","embeddedPayloadScript":"…","sha256":"…"}]}`；脚本 13,151 字符、pack 14,942 B；sha256 经 Python / Node / 真实 Chrome 三路核对 |
+| 基线（无 pack） | 无数据的笔记 URL → 25.1 s 超时；内置脚本只能读到验证页状态，无法解析 |
+| 应用 good pack | 设置页「Reader updates」→ Check：服务器收到 `UA AnySave-reader-pack/1`；状态 `Updated: 1 reader(s) updated`；日志 `reader pack applied: [xiaohongshu]`；`files/reader-pack.json` 与服务端字节一致 |
+| 热覆盖（不重启） | 同一进程（pid 未变）立刻用覆盖脚本取数：`embedded payload found: 11758 chars` → `embedded parse ok in 2005ms, items=12`，面板 12 项（作者/标题/缩略图正常） |
+| 坏 pack 拒绝 | sha256 故意不匹配：状态 `Update failed: sha256 mismatch for reader xiaohongshu`；持久化文件仍是 good pack 的字节（sha256 对比），后续提取仍 12 项 |
+| 移除 pack（0.7.1 修复） | 清空 URL 后点 Check：`Updated: pack removed`，`files/reader-pack.json` 删除、prefs 置空；同一 URL 回到超时（内置行为） |
+| 响应模式热更新（0.7.1/0.7.2） | 应用含 `responsePatterns` 的 pack 后，下一次提取日志 `hook installed … (hot=true)`，证明 document-start hook 已重新注册；但该 pattern 命中了页面真实的 `/zones` XHR，旧逻辑会「捕获到非作品响应 → 直接判 unparsed」而跳过内嵌脚本。0.7.2 修复为：捕获体解析失败且 reader 有内嵌脚本时，回退读取一次内嵌数据。实测 `captured bodies had no post, trying embedded script` → `items=12`，且只拉一次响应体（无轮询重复拉取） |
+
+## 实现结论（M7 追加）
+
+24. reader pack 的最小闭环（脚本 + 响应模式）足以覆盖「站点 SSR 结构变化」这类最常见的
+    失效；解析器保持编译进 APK，安全边界清晰。
+25. pack 的校验分层：HTTPS（release）+ 512KB 包体上限 + 200KB 脚本上限 + reader id 白名单
+    + 每个脚本 sha256；坏包整包拒绝且旧包继续生效（实测持久化文件未被覆盖）。
+26. 热更新必须考虑「操作顺序」：patterns 改变需要重新注册 document-start hook（已做），
+    且新 hook 只在**下一次页面加载**生效；脚本覆盖则在当前进程即可用。
+27. 捕获优先级缺陷：响应模式匹配到通用 XHR（如 `/zones`）时，不能因为「捕获到了但解析失败」
+    就终止；应在超时前回退到内嵌脚本，且只回退一次、不重复拉取响应体（0.7.2 修复并实测）。
+
+## 未验证项（M7 追加）
+
+- 真实远端 pack 托管（HTTPS 域名）、灰度与回滚策略
+- pack 签名（当前信任 pack URL + 每脚本 sha256；无公钥签名）
+- 已加载页面上的 patterns 即时生效（当前设计为下一次导航生效）

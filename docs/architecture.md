@@ -225,7 +225,32 @@ PreviewPanel 完成保存 ──▶ SaveService.complete()
   MediaStore 的名称与 MIME 必须与实际内容一致。
 - 上传/下载等网络调用一律在后台线程；主线程只做状态渲染与通知更新。
 
-## 更新策略（M7）
+## reader 热更新（M7）
+
+```
+Settings（Reader updates 卡片）
+   │ 用户填 pack URL（release 必须 https，debug 可 http 供本地 mock）
+   ▼
+ReaderPackRepository.refresh(url)
+   ├─ GET（超时/512KB 上限）→ ReaderPackParser.parse
+   │    · version == 1；reader id ∈ {douyin, xiaohongshu, bilibili}
+   │    · 每个脚本 ≤200KB 且必须带 sha256（不一致即拒绝）
+   │    · 每个 reader 至少有 script 或 responsePatterns 之一
+   ├─ 写入 filesDir/reader-pack.json + 替换进程内 ReaderOverrides
+   └─ UI 显示成功/失败；失败时旧 pack 保持生效
+```
+
+- 覆盖范围：内置 reader 的 `embeddedPayloadScript`（页面内 JS）与
+  `responsePatterns`；编译进 APK 的 parser、下载、上传逻辑不可远程修改。
+- 生效点：`PageExtractor` 在每次提取时读取 `ReaderOverrides` 决定注入哪些响应模式、
+  用哪个页面取数脚本；`MainActivity` 启动时加载持久化 pack。
+- 安全边界：HTTPS（release）+ sha256 + 大小/白名单限制；脚本本身仍只在目标页面上下文
+  运行，宿主只读它返回的 JSON，不授予任何原生接口。
+
+## 更新策略（规划）
+
+后续可把 reader pack 扩展为带版本的远端清单（多站点脚本、灰度、回滚），并复用同一套
+校验/缓存机制；当前 M7 已把「脚本热更新」这一最小闭环落地。
 
 站点改版时，理想情况下只更新 reader 脚本包：
 

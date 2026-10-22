@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_reader_pack_title">Reader 热更新</string>
+    <string name="settings_reader_pack_hint">填入远程 JSON 包地址，就能在不发新版本的情况下更新站点 reader。只支持 http(s) 地址。</string>
+    <string name="settings_reader_pack_url_hint">https://…/reader-pack.json</string>
+    <string name="settings_reader_pack_check">检查并更新</string>
+    <string name="settings_reader_pack_saved">已保存：%1$s</string>
+    <string name="settings_reader_pack_failed">更新失败：%1$s</string>
+    <string name="settings_reader_pack_invalid">请输入有效的 http(s) 地址。</string>
+    <string name="settings_reader_pack_updated">已更新：%1$s</string>
+</resources>

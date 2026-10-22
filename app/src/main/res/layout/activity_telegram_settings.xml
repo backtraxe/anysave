@@ -4,7 +4,8 @@
 
   Contract ids (Lead wires these): settingsBack, settingsTokenInput,
   settingsChatInput, settingsAutoUpload, settingsTestButton,
-  settingsSaveButton, settingsStatus (starts gone).
+  settingsSaveButton, settingsStatus (starts gone), and the reader hot-update
+  card: readerPackUrlInput, readerPackCheckButton, readerPackStatus.
 -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -235,6 +236,84 @@
                 android:textAllCaps="false"
                 android:textColor="@android:color/white"
                 android:textSize="14sp" />
+        </LinearLayout>
+
+        <!-- Advanced: reader hot-update pack. Kept below the primary actions so
+             Test/Save stay in the thumb zone; users scroll here when needed. -->
+        <!-- Reader hot-update pack: a remote JSON pack can refresh site readers
+             without shipping an app release. HTTP(S) only. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:background="@drawable/bg_settings_card"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/settings_reader_pack_title"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:lineSpacingExtra="2dp"
+                android:text="@string/settings_reader_pack_hint"
+                android:textColor="@color/preview_text_secondary"
+                android:textSize="12sp" />
+
+            <EditText
+                android:id="@+id/readerPackUrlInput"
+                android:layout_width="match_parent"
+                android:layout_height="52dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_settings_field"
+                android:hint="@string/settings_reader_pack_url_hint"
+                android:imeOptions="actionDone"
+                android:importantForAutofill="no"
+                android:inputType="textUri"
+                android:maxLines="1"
+                android:paddingStart="16dp"
+                android:paddingEnd="16dp"
+                android:textColor="@color/text_primary"
+                android:textColorHint="@color/preview_placeholder_icon"
+                android:textSize="14sp" />
+
+            <Button
+                android:id="@+id/readerPackCheckButton"
+                android:layout_width="match_parent"
+                android:layout_height="48dp"
+                android:layout_marginTop="12dp"
+                android:background="@drawable/bg_settings_secondary_button"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center"
+                android:minHeight="0dp"
+                android:minWidth="0dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                android:stateListAnimator="@null"
+                android:text="@string/settings_reader_pack_check"
+                android:textAllCaps="false"
+                android:textColor="@color/brand"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/readerPackStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:accessibilityLiveRegion="polite"
+                android:background="@drawable/bg_settings_status"
+                android:lineSpacingExtra="2dp"
+                android:padding="14dp"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:visibility="gone" />
         </LinearLayout>
 
     </LinearLayout>

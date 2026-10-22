@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="settings_reader_pack_title">Reader updates</string>
+    <string name="settings_reader_pack_hint">Point AnySave at a remote JSON pack to update site readers without an app release. Only http(s) URLs are accepted.</string>
+    <string name="settings_reader_pack_url_hint">https://…/reader-pack.json</string>
+    <string name="settings_reader_pack_check">Check &amp; update</string>
+    <string name="settings_reader_pack_saved">Saved: %1$s</string>
+    <string name="settings_reader_pack_failed">Update failed: %1$s</string>
+    <string name="settings_reader_pack_invalid">Enter a valid http(s) URL.</string>
+    <string name="settings_reader_pack_updated">Updated: %1$s</string>
+</resources>

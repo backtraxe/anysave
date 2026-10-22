@@ -25,6 +25,7 @@ import io.github.backtraxe.anysave.model.ExtractionSnapshot
 import io.github.backtraxe.anysave.model.MediaItem
 import io.github.backtraxe.anysave.model.PostMedia
 import io.github.backtraxe.anysave.model.SaveState
+import io.github.backtraxe.anysave.reader.ReaderOverrides
 import io.github.backtraxe.anysave.reader.SiteReader
 import io.github.backtraxe.anysave.ui.PreviewPanel
 
@@ -71,7 +72,12 @@ class MainActivity : Activity() {
 
         if (BuildConfig.DEBUG) {
             // Never expose the production WebView to DevTools debugging.
+            ReaderOverrides.load(this)
+
+        if (BuildConfig.DEBUG) {
+            // Never expose the production WebView to DevTools debugging.
             WebView.setWebContentsDebuggingEnabled(true)
+        }
         }
 
         webView.webViewClient = object : WebViewClient() {
