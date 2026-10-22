@@ -12,7 +12,7 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 
 ## 状态
 
-**M14 B 站画质选择**（可编译、可运行、已端到端验证）。完整链路：
+**M15 小红书桌面页适配（风控规避）**（可编译、可运行、已端到端验证）。完整链路：
 
 - 输入链接 → WebView 打开页面
 - 文档开始时注入响应监听（`app/src/main/res/raw/hook.js`），命中时连同响应体一起留下
@@ -34,6 +34,8 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 - **登录/会话（M9）**：设置页「登录」用**站点桌面版登录页**（App 内 WebView、
   手机扫码），登录态就是 WebView 的 Cookie，只存在应用私有目录；可一键清除
   所有站点登录态。抖音提取必须登录，B 站登录后可拿更高清晰度
+- **小红书桌面页（M15）**：笔记页改用桌面 UA 加载（与登录页一致），避开移动页在
+  风控压力下跳 `/404/sec_*` 的问题；桌面页 `note.noteDetailMap` 数据由同一 parser 解析
 - **B 站画质选择（M14）**：设置页可选 Auto / 1080P / 720P / 480P，限制从
   `__playinfo__` DASH 清单里挑选的 AVC 档位（Auto=当前会话可用的最高档）；
   实测同一个视频 1080P 9.38 MB vs 720P 4.10 MB，清晰度与体积都符合预期
@@ -80,6 +82,7 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 | 微博图文（3 图） | 3.2 s 解析出 3 项（作者杨伊琳10）；保存 3 张原图 229,606 / 256,742 / 221,566 B，MediaStore 尺寸正确、无 pending |
 | 微博视频（1 条） | 2.0 s 解析出 1 项；保存 1,896,528 B MP4（h264 720×1280 + AAC 44.1 kHz 立体声，13.72 s） |
 | 登录态检测 | 清空会话后三站均显示「未登录」；用真实浏览器会话后 `Douyin: Logged in · 背影` / `Bilibili: Logged in · Backtraxe` / `Xiaohongshu: Logged in · 山水之间`；清除后恢复未登录；探测不输出 Cookie 值 |
+| 小红书桌面页 | 登录态下提取真实笔记：`items=12`、作者「让心自由」（2.9 s），12 张图全部保存成功（`saved=12 failed=0`，单张最大 ~23 MB）；此前移动 UA 同一路径会拿 10 KB 的 sec 风控页 |
 | B 站画质 | 同一 17 秒视频：720P 限制下保存 4,095,857 B（ffprobe h264 **1280×720** + AAC）；不限制时 9,384,650 B（**1920×1080**）；切换后状态 `Current: 720P/1080P/Auto` 正确 |
 | 按站点退出 | 三站已登录时点「清除B站」：状态变为 `Bilibili: Not logged in`，抖音/小红书仍 `Logged in`；DB 中 B站 `SESSDATA/bili_jct/DedeUserID` 行消失（仅剩探测页访客 Cookie） |
 | Cookie 导入 | 真实 B站/小红书/抖音 Cookie 通过 UI 导入：小红书 17/17 条名称与值完全写入；B站导入后登录态 `Bilibili: Logged in · Backtraxe` 并能提取/保存 1080P（短视频 9.38 MB，h264 1920×1080）；抖音导入后 `Douyin: Logged in · 背影`；扫码登录按钮仍能打开各站桌面登录页 |
@@ -280,6 +283,7 @@ reader pack JSON，替换内置 reader 的**页面提取脚本**与**响应匹�
 - **M12** Cookie 导入（浏览器导出 → App 内粘贴导入）✅
 - **M13** 按站点退出登录 + 剪贴板导入 ✅
 - **M14** B 站画质选择（Auto/1080P/720P/480P）✅
+- **M15** 小红书桌面页（风控规避）✅
 
 ## 已知限制
 

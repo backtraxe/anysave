@@ -1,5 +1,6 @@
 package io.github.backtraxe.anysave.reader
 
+import io.github.backtraxe.anysave.model.DESKTOP_CHROME_UA
 import io.github.backtraxe.anysave.model.PostMedia
 
 /**
@@ -17,6 +18,13 @@ object XiaohongshuReader : SiteReader {
     override val id = "xiaohongshu"
     override val origin = "https://www.xiaohongshu.com"
     override val responsePatterns: List<String> = emptyList()
+
+    /**
+     * The mobile UA gets the app-oriented page which, under anti-bot pressure,
+     * diverges to `/404/sec_*` risk pages. The desktop page carries the same
+     * `note.noteDetailMap` data and is the layout a logged-in browser shows.
+     */
+    override val pageUserAgent: String = DESKTOP_CHROME_UA
 
     override fun matches(url: String): Boolean = url.contains("xiaohongshu.com")
 

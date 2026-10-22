@@ -636,3 +636,26 @@ daemon `127.0.0.1:10086`）在用户真实浏览器里读取会话，再用 debu
 
 - 480P 档位的真机保存（单测覆盖选择逻辑；720P/1080P 已真机验证）
 - 高帧率/HDR/大会员专属档位
+
+## 实验 AB：小红书桌面页（M15）
+
+背景：同一天大量自动化请求后，小红书移动 UA 笔记页稳定跳 `/404/sec_*`（`embedded payload found: ~10366 chars` 但解析不出），即使 Cookie 完整、CDP 注入也一样；真实 Chrome 桌面页仍正常。
+
+| 场景 | 结果 |
+|---|---|
+| 页面 UA | `XiaohongshuReader.pageUserAgent = DESKTOP_CHROME_UA`（与 M9 登录页一致；其余站点不变） |
+| 数据形状 | 桌面页 `__INITIAL_STATE__.note.noteDetailMap[<id>].note`（bridge 侧实测 10 张 imageList），reader 脚本/parser 已支持 |
+| 应用内提取 | 登录态下提取真实笔记：`embedded payload found: 11349 chars` → `items=12`，作者「让心自由」，2.9 s |
+| 保存 | 全选 12 张 → `saved=12 failed=0`；单张最大约 23 MB；MediaStore `Pictures/AnySave/` |
+| 回归 | 小红书分享链接仍需 `xsec_token`；其它站点 UA/Cookie 逻辑未改 |
+
+## 实现结论（M15 追加）
+
+57. 「站点风控」优先从**页面形态**解决：桌面页与移动页数据同构时，切换 UA 比反爬博弈稳定。
+58. 桌面页数据仍在 `__INITIAL_STATE__`，parser 的两种结构兼容设计在此复用，无需新增解析分支。
+59. UA 覆盖要按站点显式声明（`SiteReader.pageUserAgent`），避免影响抖音/微博/YouTube 等其它流程。
+
+## 未验证项（M15 追加）
+
+- 小红书视频笔记在桌面页的完整保存（本次验证的是 12 张图集）
+- 极端风控下桌面页是否仍会 sec（站点策略不可控）

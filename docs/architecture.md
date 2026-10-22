@@ -122,6 +122,9 @@ SiteReader.forUrl(url)
   裸 `/explore` 会落到验证页；这是站点的风控要求，应用不做绕过。首页需要登录，
   因此本应用只处理用户粘贴的单篇笔记链接。
 - **B 站**（M5）在 SSR 数据之外还要求 DASH 合流与站点 UA 覆盖，见下一节。
+- **小红书**（M15）：笔记页固定桌面 UA（与 M9 登录页一致）。移动页在风控压力下会跳
+  `/404/sec_*`，桌面页仍返回 `__INITIAL_STATE__.note.noteDetailMap[<id>].note`，
+  现有 parser 直接兼容；图片/视频 CDN 不变。
 - **微博**（M8）：`weibo.com/<uid>/<bid>` 重定向到 `m.weibo.cn/status/<bid>`，SSR 里
   有 `$render_data.status`；图片取 `pics[].large`，视频取 `page_info.urls` 最优档；
   `MediaSite.WEIBO` 提供 `https://weibo.com/` Referer（sinaimg / weibocdn 缺它会 403）。
