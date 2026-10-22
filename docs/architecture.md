@@ -420,3 +420,34 @@ ReaderPackRepository.refresh(url)
 SSR 页面也坚持「只读页面已有数据」，而不是替页面补一次签名请求——后者虽然也能
 工作，但会让「只观察」的边界失效，并重新引入对接口参数的维护。
 下载环节同样不做 API 重放：只消费页面已经收到的媒体 CDN 直链。
+
+## 失败项重试与上传兜底（M18）
+
+### 失败项保存重试
+
+```
+SaveService 记录 lastPost + lastFailedItems（进程内）
+   → Finished.retryable = failed>0 && 队列非空
+   → 面板「Retry N failed」/ 通知「Retry failed」action
+   → retryLastFailed(context)：同一 PostMedia + 仅失败项重新 start()
+```
+
+- 只重跑失败项，不重复成功项；进程被杀后队列丢失（retryable=false）。
+- 面板与通知共用同一条重试路径。
+
+### Telegram 上传兜底
+
+`TelegramClient.uploadMedia` 仍然 `chunked(10)` 顺序发送；新增：
+- 某组失败 → 逐条降级发送（一条坏媒体不拖累整组），成功条数计入；
+- 降级后仍失败的单条进入队列，全部组处理完后再各自重试一次；
+- caption 只落在第一个成功项。
+
+## 通知里的失败重试（M19）
+
+```
+SaveService.finishRun 有失败项 → buildFinishedNotification
+   → addAction("Retry failed", PendingIntent.getService(SaveService, EXTRA_RETRY))
+   → 点击后 onStartCommand 检测 EXTRA_RETRY → retryLastFailed(this)
+```
+
+通知正文同时显示 `N saved, M failed`；action 与面板按钮走同一重试逻辑。
