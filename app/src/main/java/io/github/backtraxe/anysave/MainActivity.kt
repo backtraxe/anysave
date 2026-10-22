@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
+import android.os.SystemClock
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -25,6 +26,8 @@ import io.github.backtraxe.anysave.model.ExtractionSnapshot
 import io.github.backtraxe.anysave.model.MediaItem
 import io.github.backtraxe.anysave.model.PostMedia
 import io.github.backtraxe.anysave.model.SaveState
+import io.github.backtraxe.anysave.reader.DirectExtractor
+import io.github.backtraxe.anysave.reader.DirectExtractors
 import io.github.backtraxe.anysave.reader.ReaderOverrides
 import io.github.backtraxe.anysave.reader.SiteReader
 import io.github.backtraxe.anysave.ui.PreviewPanel
@@ -121,6 +124,11 @@ class MainActivity : Activity() {
             statusText.text = getString(R.string.status_invalid_url)
             return
         }
+        val direct = DirectExtractors.forUrl(url)
+        if (direct != null) {
+            startDirectExtraction(direct, url)
+            return
+        }
         val reader = SiteReader.forUrl(url)
         if (reader == null) {
             statusText.text = getString(R.string.status_no_reader)
@@ -130,6 +138,45 @@ class MainActivity : Activity() {
         hideKeyboard()
         statusText.text = getString(R.string.status_extracting)
         extractor.extract(url, reader)
+    }
+
+    /**
+     * Sites with a dedicated extractor (YouTube) do not use the WebView; the
+     * extractor performs its own network calls on a background thread.
+     */
+    private fun startDirectExtraction(extractor: DirectExtractor, url: String) {
+        closePreview()
+        hideKeyboard()
+        statusText.text = getString(R.string.status_extracting)
+        val startedAt = SystemClock.elapsedRealtime()
+        Thread({
+            val post = try {
+                extractor.extract(url)
+            } catch (t: Throwable) {
+                Log.w(TAG, "direct extractor ${extractor.id} failed", t)
+                null
+            }
+            val elapsed = SystemClock.elapsedRealtime() - startedAt
+            runOnUiThread {
+                if (isFinishing || isDestroyed) return@runOnUiThread
+                if (post == null || post.isEmpty) {
+                    statusText.text = getString(R.string.status_direct_failed)
+                    Log.i(TAG, "direct extract failed extractor=${extractor.id}")
+                    return@runOnUiThread
+                }
+                currentPost = post
+                savingPostId = null
+                statusText.text = getString(R.string.status_parsed, post.items.size, elapsed)
+                Log.i(
+                    TAG,
+                    "parsed(direct) id=${post.awemeId} author=${post.author} " +
+                        "items=${post.items.size} elapsed=${elapsed}ms",
+                )
+                webView.onPause()
+                preview.show(post)
+                preview.renderSaveState(SaveState.Idle)
+            }
+        }, "anysave-direct-extract").start()
     }
 
     private fun hideKeyboard() {

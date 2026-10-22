@@ -46,7 +46,7 @@ object ReaderPackParser {
     const val MAX_PATTERNS = 8
     const val MAX_PATTERN_CHARS = 300
 
-    private val KNOWN_READER_IDS = setOf("douyin", "xiaohongshu", "bilibili")
+    private val KNOWN_READER_IDS = setOf("douyin", "xiaohongshu", "bilibili", "weibo")
 
     /** @throws IllegalArgumentException with a user-readable reason. */
     fun parse(json: String): ReaderPack {

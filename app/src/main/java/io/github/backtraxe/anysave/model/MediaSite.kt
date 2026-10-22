@@ -28,6 +28,10 @@ enum class MediaSite(
      * desktop Chrome UA instead.
      */
     BILIBILI("bilibili", "https://www.bilibili.com/", DESKTOP_CHROME_UA),
+    /** YouTube via dedicated extractor; googlevideo likes a desktop UA too. */
+    YOUTUBE("youtube", "https://www.youtube.com/", DESKTOP_CHROME_UA),
+    /** Weibo media CDNs require a weibo Referer. */
+    WEIBO("weibo", "https://weibo.com/"),
     ;
 
     companion object {
@@ -45,6 +49,12 @@ enum class MediaSite(
             url.contains("xhscdn.com") || url.contains("xiaohongshu.com") -> XIAOHONGSHU.referer
             url.contains("hdslb.com") || url.contains("bilivideo") ||
                 url.contains("bilibili.com") -> BILIBILI.referer
+
+            url.contains("ytimg.com") || url.contains("googlevideo.com") ||
+                url.contains("youtube.com") || url.contains("ggpht.com") -> YOUTUBE.referer
+
+            url.contains("sinaimg.cn") || url.contains("weibocdn.com") ||
+                url.contains("weibo.cn") || url.contains("weibo.com") -> WEIBO.referer
 
             else -> DOUYIN.referer
         }

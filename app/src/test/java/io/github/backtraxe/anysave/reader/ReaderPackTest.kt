@@ -53,7 +53,7 @@ class ReaderPackTest {
 
     @Test
     fun `rejects unknown readers missing updates and bad versions`() {
-        val unknown = packJson(JSONObject().put("id", "weibo").put("responsePatterns", JSONArray().put("/x")))
+        val unknown = packJson(JSONObject().put("id", "unknownsite").put("responsePatterns", JSONArray().put("/x")))
         assertTrue(runCatching { ReaderPackParser.parse(unknown) }.isFailure)
 
         val noUpdate = packJson(JSONObject().put("id", "douyin"))

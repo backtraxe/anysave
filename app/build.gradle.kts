@@ -37,8 +37,8 @@ android {
         applicationId = "io.github.backtraxe.anysave"
         minSdk = 26
         targetSdk = 35
-        versionCode = 10
-        versionName = "0.7.2"
+        versionCode = 12
+        versionName = "0.8.1"
     }
 
     signingConfigs {
@@ -116,6 +116,8 @@ tasks.register<Copy>("namedReleaseApk") {
 dependencies {
     implementation("androidx.webkit:webkit:1.12.1")
     implementation("androidx.recyclerview:recyclerview:1.3.2")
+    // Dedicated YouTube extractor (roadmap M6 fallback). GPL-3.0 licensed.
+    implementation("com.github.TeamNewPipe:NewPipeExtractor:v0.26.5")
 
     testImplementation("junit:junit:4.13.2")
     // Real org.json on the JVM unit-test classpath (android.jar only stubs it).

@@ -100,7 +100,10 @@ fixture 做单元测试。图片选择规则：跳过带 `dy-water` 水印流水
 ```
 SiteReader.forUrl(url)
    ├── DouyinReader        origin www.douyin.com   网络响应（detail）+ SSR 兜底
-   └── XiaohongshuReader   origin www.xiaohongshu.com  SSR 内嵌数据（无网络模式）
+   ├── XiaohongshuReader   origin www.xiaohongshu.com  SSR 内嵌数据（无网络模式）
+   ├── BilibiliReader      origin www.bilibili.com    SSR + DASH 合流 + 桌面 UA
+   ├── WeiboReader         origin weibo.com           SSR（$render_data.status）
+   └── YouTubeExtractor    DirectExtractor（专用提取器，不经 WebView）
 ```
 
 - **MediaSite**（`model/MediaSite.kt`）是站点事实的唯一来源：文件名前缀
@@ -117,8 +120,11 @@ SiteReader.forUrl(url)
 - **分享链接约束**：小红书笔记页必须带 `xsec_token`（`/discovery/item/<id>?…`），
   裸 `/explore` 会落到验证页；这是站点的风控要求，应用不做绕过。首页需要登录，
   因此本应用只处理用户粘贴的单篇笔记链接。
-- **B 站**（M5）在 SSR 数据之外还要求 DASH 合流与站点 UA 覆盖，见下一节；
-  YouTube 需要专用提取库，不在「WebView 观察」路线内。
+- **B 站**（M5）在 SSR 数据之外还要求 DASH 合流与站点 UA 覆盖，见下一节。
+- **微博**（M8）：`weibo.com/<uid>/<bid>` 重定向到 `m.weibo.cn/status/<bid>`，SSR 里
+  有 `$render_data.status`；图片取 `pics[].large`，视频取 `page_info.urls` 最优档；
+  `MediaSite.WEIBO` 提供 `https://weibo.com/` Referer（sinaimg / weibocdn 缺它会 403）。
+- **YouTube** 走专用提取器，见下一节。
 
 ## B 站与 DASH 合流（M5）
 
@@ -224,6 +230,31 @@ PreviewPanel 完成保存 ──▶ SaveService.complete()
 - 站点 media URL 可能不带扩展名或走转码流水线：保存后按字节嗅探容器类型，
   MediaStore 的名称与 MIME 必须与实际内容一致。
 - 上传/下载等网络调用一律在后台线程；主线程只做状态渲染与通知更新。
+
+## 专用提取器：YouTube（M8）
+
+YouTube 是唯一不走「WebView 观察」的站点：页面里的 `ytInitialPlayerResponse` 只给出
+`signatureCipher` 与 `serverAbrStreamingUrl`，播放地址必须经过播放器 JS 解密/ABR
+协议才能得到。按路线图里预留的「专用库兜底」，这里接
+[NewPipeExtractor](https://github.com/TeamNewPipe/NewPipeExtractor)（GPL-3.0）。
+
+```
+MainActivity.startExtraction(url)
+   ├─ DirectExtractors.forUrl(url) == YouTubeExtractor ?
+   │     └─ 后台线程：NewPipe.init(Downloader) → StreamInfo.getInfo(YouTube, url)
+   │           → 选流：AVC MP4 video-only（≤720p）+ AAC M4A audio
+   │           → PostMedia(site=YOUTUBE, 1 个 VIDEO：url + audioUrl)
+   └─ 其他站点：原 WebView 观察链路（SiteReader）
+```
+
+- 下载与保存复用现有管线：`MediaSaver` 下载 video/audio 两条轨 → `DashMuxer` 合流成
+  单 MP4 → MediaStore；失败按失败计数。
+- 这条路径不依赖 WebView、不需要 Cookie；它是唯一直接调用站点 API 的代码（提取器内部），
+  其余站点仍然只观察页面已产生的数据。
+- 因为 NewPipeExtractor 是 GPL-3.0，整个项目随之采用 GPL-3.0（见 LICENSE）；若要换许可证，
+  必须替换/移除该依赖。
+- `DirectExtractor` 是通用扩展点：以后若还有「只能靠专用协议」的站点，可独立接一层，
+  不污染 SiteReader 的观察模型。
 
 ## reader 热更新（M7）
 

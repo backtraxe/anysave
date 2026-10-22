@@ -394,3 +394,44 @@ M2 的保存只消费页面已经收到的 CDN 直链。先验证这些直链本
 - 真实远端 pack 托管（HTTPS 域名）、灰度与回滚策略
 - pack 签名（当前信任 pack URL + 每脚本 sha256；无公钥签名）
 - 已加载页面上的 patterns 即时生效（当前设计为下一次导航生效）
+
+## 实验 S：YouTube（M8，专用提取器）
+
+按路线图预留的「专用库兜底」接入 NewPipeExtractor（GPL-3.0）。先用纯 JVM 测试确认
+在本机网络下可解析：
+
+| 项目 | 结果 |
+|---|---|
+| 页面数据（WebView 观察） | `ytInitialPlayerResponse` 里只有 `signatureCipher` + `serverAbrStreamingUrl`，无直链；embed 页面也只加载播放器 API |
+| NewPipeExtractor 解析 | `StreamInfo.getInfo(YouTube, …)` 成功：title/uploader/duration、1 个 progressive 360p MP4、5 个 video-only（AVC/VP9）、5 个音频（M4A mp4a.40.5/40.2 + Opus） |
+| 选流规则（单测 5 条） | 优先 AVC MP4 video-only（≤720p）+ `mp4a.40.2` M4A；没有可合流组合时回退 progressive MP4 |
+| 应用内提取 | `parsed(direct) id=jNQXAC9IVRw author=jawed items=1 elapsed=6514ms`，面板 1 item / “Me at the zoo” / 00:19 |
+| 应用内保存 | `muxed youtube_jNQXAC9IVRw_video.mp4 (v=433081B a=309288B -> 746914B)`，45.6 s（含 CDN 下载）；MediaStore `Movies/AnySave/`、`video/mp4`、320×240、`is_pending=0` |
+| 产物校验 | ffprobe：h264 320×240 18.87 s + AAC 44.1 kHz 立体声 19.06 s；`ffmpeg -t 2 -f null -` rc=0 |
+| 网络备注 | 本机 DNS 对 `*.googlevideo.com` 返回被劫持的代理 IP，其中一个（29.240.1.61）不可达导致首次保存 TCP 超时；验证时用 rooted 模拟器临时 iptables 把该 IP DNAT 到可用 IP 完成，规则已移除。应用侧无 403/证书问题 |
+
+## 实验 T：微博（M8，SSR 观察）
+
+| 项目 | 结果 |
+|---|---|
+| 页面形态 | `weibo.com/<uid>/<bid>` 在 Android WebView UA 下重定向到 `m.weibo.cn/status/<bid>?jumpfrom=weibocom`，SSR 内嵌 `window.$render_data.status`；无需登录（自动 visitor cookie） |
+| 图文笔记 | 3.2 s 解析出 3 项（作者杨伊琳10）；保存 3 张 sinaimg 原图：229,606 / 256,742 / 221,566 B；MediaStore 尺寸 1440×1080 / 1740×1242 / 1440×1080，`is_pending=0`；拉回 PIL 校验通过 |
+| 视频笔记 | 2.0 s 解析出 1 项；保存 `weibo_RnPXb1X4T_video.mp4` 1,896,528 B（720p 档），ffprobe h264 720×1280 + AAC 44.1 kHz 立体声 13.72 s，MediaStore pending 0，解码 2 s 无错误 |
+| CDN 要求 | `wx*.sinaimg.cn` / `f.video.weibocdn.com` 需要 `Referer: https://weibo.com/`（缺失 403）；Cookie 不需要；视频直链带 `Expires`（约 2 小时） |
+
+## 实现结论（M8 追加）
+
+28. YouTube 只能走专用提取器：页面数据里没有可播放直链（cipher/ABR），这与「只观察」路线
+    不兼容，按路线图例外处理；封装为 `DirectExtractor`，不影响其它站点的观察模型。
+29. GPL-3.0 是引入 NewPipeExtractor 的必然结果：项目整体改为 GPL-3.0 并附第三方声明；
+    若将来要换许可证，必须替换/移除该依赖。
+30. 微博是干净的 SSR 观察站点：移动页 `$render_data.status` + 媒体 CDN 只需 Referer，
+    与抖音/小红书的 SSR 兜底管线一致，直接复用。
+31. 下载管线复用价值高：YouTube 的 AVC+M4A 与 B 站的 DASH 都直接走已有 DashMuxer，
+    没有引入新的下载/合流实现。
+
+## 未验证项（M8 追加）
+
+- YouTube 720p 以上档位与登录态画质（本次取 ≤720p，未登录）
+- 微博主页/话题/评论区、长文（头条文章）形态
+- 本机 googlevideo DNS 劫持属于验证环境问题，真实用户网络未必受影响
