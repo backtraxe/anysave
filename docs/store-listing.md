@@ -15,7 +15,7 @@
 | 语言 | 简体中文 / English |
 | 价格 | 免费、无广告、无内购 |
 | 许可证 | GPL-3.0（含 NewPipeExtractor，GPL-3.0） |
-| 应用图标 | `docs/images/app-icon.png`（品牌橙渐变 + 白色「下载箭头入托盘」，自适应 + monochrome） |
+| 应用图标 | `docs/images/app-icon.png`（深紫渐变 + 奶油书签内嵌播放三角 + 薄荷点缀；自适应 + monochrome） |
 | 源码 | https://github.com/backtraxe/anysave |
 | 下载 | https://github.com/backtraxe/anysave/releases |
 
@@ -81,10 +81,12 @@ Telegram 上传是可选功能，由用户配置自己的 Bot Token 与 Chat ID�
 ## 图标
 
 - 自适应图标（API 26+）：`res/mipmap-anydpi-v26/ic_launcher.xml`（+ `ic_launcher_round.xml`）
-- 背景：`res/drawable/ic_launcher_background.xml`（`#FF8A5F → #FF5A36 → #DE4527` 对角渐变）
-- 前景：`res/drawable/ic_launcher_foreground.xml`（白色圆头箭头 + 半透明托盘，全部落在 66dp 安全区）
+- 背景：`res/drawable/ic_launcher_background.xml`（`#8B7CFF → #5B4BE0 → #2E2380` 深紫对角渐变）
+- 前景：`res/drawable/ic_launcher_foreground.xml`（奶油书签 `#FFF6E9` + 播放三角负空间 +
+  低透明度偏移叠片 + 薄荷绿 `#B8FF5C` 点缀，全部落在 66dp 安全区）
 - 主题图标：`res/drawable/ic_launcher_monochrome.xml`
 - 预览：`docs/images/app-icon.png`
+- 语义：书签 = 收藏/保存，播放三角 = 媒体内容
 
 ## 截图清单
 
@@ -105,6 +107,8 @@ Telegram 上传是可选功能，由用户配置自己的 Bot Token 与 Chat ID�
 
 | 版本 | 内容 |
 |---|---|
+| 0.22.0 | 品牌图标重设计（深紫/奶油/薄荷，书签+播放） |
+| 0.21.0 | 首版自适应图标（橙/下载箭头） |
 | 0.20.0 | 上传失败清单/重试、M18/M19 收尾、商店文档 |
 | 0.19.0 | 通知内失败重试、Telegram 分组 mock 端到端 |
 | 0.18.0 | 失败项重试、上传分组兜底、视频流细化 |

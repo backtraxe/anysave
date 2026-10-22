@@ -1,32 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Save/keep glyph: a round-capped download arrow dropping into an open tray.
-     All strokes sit inside the 66dp adaptive-icon safe zone. -->
+<!-- Save-as-media mark: a cream bookmark with a play cutout, plus a soft
+     offset backing layer and a mint spark. Violet + cream + mint palette. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Arrow shaft -->
+    <!-- Depth: same bookmark silhouette offset down/right at low opacity -->
     <path
-        android:pathData="M54,28 L54,54"
-        android:strokeColor="#FFFFFF"
-        android:strokeLineCap="round"
-        android:strokeWidth="8" />
+        android:fillColor="#26FFF6E9"
+        android:pathData="M43,40 A6,6 0 0 1 49,34 H69 A6,6 0 0 1 75,40 V82 L59,68 L43,82 Z" />
 
-    <!-- Arrow head -->
+    <!-- Main bookmark; the play triangle is a true negative-space cutout -->
     <path
-        android:pathData="M42,44 L54,56 L66,44"
-        android:strokeColor="#FFFFFF"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="8" />
+        android:fillColor="#FFF6E9"
+        android:fillType="evenOdd"
+        android:pathData="M38,36 A6,6 0 0 1 44,30 H64 A6,6 0 0 1 70,36 V78 L54,64 L38,78 Z
+                          M48,42 V56 L60,49 Z" />
 
-    <!-- Open tray: slightly translucent so the arrow stays the hero -->
+    <!-- Mint accent: small spark dot near the bookmark's top-right corner -->
     <path
-        android:pathData="M32,66 L32,78 L76,78 L76,66"
-        android:strokeColor="#E6FFFFFF"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="8" />
+        android:fillColor="#B8FF5C"
+        android:pathData="M76,30 m-4,0 a4,4 0 1 0 8,0 a4,4 0 1 0 -8,0" />
 </vector>
