@@ -4,6 +4,8 @@
 [![Release](https://img.shields.io/github/v/release/backtraxe/anysave)](https://github.com/backtraxe/anysave/releases)
 [![License](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
 
+<img src="docs/images/app-icon.png" width="96" align="right" alt="AnySave icon">
+
 > Pick, preview and keep media from any web page.
 
 从任意网页里，先看、再选、再存。

@@ -15,6 +15,7 @@
 | 语言 | 简体中文 / English |
 | 价格 | 免费、无广告、无内购 |
 | 许可证 | GPL-3.0（含 NewPipeExtractor，GPL-3.0） |
+| 应用图标 | `docs/images/app-icon.png`（品牌橙渐变 + 白色「下载箭头入托盘」，自适应 + monochrome） |
 | 源码 | https://github.com/backtraxe/anysave |
 | 下载 | https://github.com/backtraxe/anysave/releases |
 
@@ -76,6 +77,14 @@ AnySave 不收集、不上传任何个人数据。应用在设备本地使用 We
 站点 Cookie/登录态保存在系统 WebView 的应用私有目录中，不会导出或发送到第三方服务器。
 Telegram 上传是可选功能，由用户配置自己的 Bot Token 与 Chat ID，媒体文件只会发送到该用户
 指定的会话。应用不含广告、分析或追踪 SDK。源码以 GPL-3.0 公开，可自行审计。
+
+## 图标
+
+- 自适应图标（API 26+）：`res/mipmap-anydpi-v26/ic_launcher.xml`（+ `ic_launcher_round.xml`）
+- 背景：`res/drawable/ic_launcher_background.xml`（`#FF8A5F → #FF5A36 → #DE4527` 对角渐变）
+- 前景：`res/drawable/ic_launcher_foreground.xml`（白色圆头箭头 + 半透明托盘，全部落在 66dp 安全区）
+- 主题图标：`res/drawable/ic_launcher_monochrome.xml`
+- 预览：`docs/images/app-icon.png`
 
 ## 截图清单
 

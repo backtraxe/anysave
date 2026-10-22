@@ -1,21 +1,32 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- Save/keep glyph: a round-capped download arrow dropping into an open tray.
+     All strokes sit inside the 66dp adaptive-icon safe zone. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
+
+    <!-- Arrow shaft -->
     <path
-        android:pathData="M54,30 L54,60"
+        android:pathData="M54,28 L54,54"
         android:strokeColor="#FFFFFF"
         android:strokeLineCap="round"
-        android:strokeWidth="7" />
+        android:strokeWidth="8" />
+
+    <!-- Arrow head -->
     <path
-        android:pathData="M42,49 L54,61 L66,49"
+        android:pathData="M42,44 L54,56 L66,44"
         android:strokeColor="#FFFFFF"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:strokeWidth="7" />
+        android:strokeWidth="8" />
+
+    <!-- Open tray: slightly translucent so the arrow stays the hero -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M32,68 L76,68 L76,78 L32,78 Z" />
+        android:pathData="M32,66 L32,78 L76,78 L76,66"
+        android:strokeColor="#E6FFFFFF"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="8" />
 </vector>
