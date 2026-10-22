@@ -31,6 +31,79 @@ object SessionManager {
         "xiaohongshu" to CookieSite(listOf("xiaohongshu.com"), ".xiaohongshu.com"),
     )
 
+    private data class ClearSite(
+        val domains: List<String>,
+        val urls: List<String>,
+        val origins: List<String>,
+        val criticalCookies: List<String>,
+    )
+
+    private val CLEAR_SITES = mapOf(
+        "douyin" to ClearSite(
+            domains = listOf(".douyin.com"),
+            urls = listOf("https://www.douyin.com", "https://m.douyin.com"),
+            origins = listOf("https://www.douyin.com", "https://m.douyin.com"),
+            criticalCookies = listOf(
+                "sessionid", "sessionid_ss", "sid_tt", "sid_guard", "sid_ucp_v1",
+                "uid_tt", "uid_tt_ss", "ttwid", "UIFID", "UIFID_TEMP", "n_mh",
+                "passport_csrf_token", "passport_csrf_token_default", "odin_tt",
+            ),
+        ),
+        "bilibili" to ClearSite(
+            domains = listOf(".bilibili.com"),
+            urls = listOf("https://www.bilibili.com", "https://api.bilibili.com"),
+            origins = listOf("https://www.bilibili.com", "https://m.bilibili.com"),
+            criticalCookies = listOf(
+                "SESSDATA", "bili_jct", "DedeUserID", "DedeUserID__ckMd5",
+                "bili_ticket", "bili_ticket_expires", "buvid3", "buvid4", "sid", "b_nut",
+            ),
+        ),
+        "xiaohongshu" to ClearSite(
+            domains = listOf(".xiaohongshu.com"),
+            urls = listOf("https://www.xiaohongshu.com"),
+            origins = listOf("https://www.xiaohongshu.com"),
+            criticalCookies = listOf(
+                "web_session", "id_token", "last_web_session", "a1", "webId",
+                "xsecappid", "websectiga", "sec_poison_id",
+            ),
+        ),
+    )
+
+    /**
+     * Logs one site out: expires its cookies (session-critical names plus every
+     * visible cookie) and clears that origin's web storage (M13). Other sites
+     * are untouched.
+     *
+     * @return number of cookie names expired (best effort).
+     */
+    fun clearSite(siteId: String): Int {
+        val site = CLEAR_SITES[siteId]
+            ?: throw IllegalArgumentException("unknown cookie site: $siteId")
+        val cookieManager = CookieManager.getInstance()
+        val names = LinkedHashSet<String>(site.criticalCookies)
+        for (url in site.urls) {
+            cookieManager.getCookie(url)
+                ?.split(';')
+                ?.forEach { pair ->
+                    val name = pair.substringBefore('=').trim()
+                    if (name.isNotEmpty()) names += name
+                }
+        }
+        for (name in names) {
+            for (domain in site.domains) {
+                val host = domain.removePrefix(".")
+                val expired = "$name=; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; " +
+                    "Domain=$domain; Path=/"
+                cookieManager.setCookie("https://$host/", expired)
+            }
+        }
+        cookieManager.flush()
+        for (origin in site.origins) {
+            runCatching { WebStorage.getInstance().deleteOrigin(origin) }
+        }
+        return names.size
+    }
+
     /**
      * Writes browser-exported cookies into the app's WebView session (M12).
      *

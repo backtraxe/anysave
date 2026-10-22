@@ -12,7 +12,7 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 
 ## 状态
 
-**M12 Cookie 导入 + 扫码登录双通道**（可编译、可运行、已端到端验证）。完整链路：
+**M13 登录态管理增强（按站点退出 + 剪贴板导入）**（可编译、可运行、已端到端验证）。完整链路：
 
 - 输入链接 → WebView 打开页面
 - 文档开始时注入响应监听（`app/src/main/res/raw/hook.js`），命中时连同响应体一起留下
@@ -34,6 +34,9 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 - **登录/会话（M9）**：设置页「登录」用**站点桌面版登录页**（App 内 WebView、
   手机扫码），登录态就是 WebView 的 Cookie，只存在应用私有目录；可一键清除
   所有站点登录态。抖音提取必须登录，B 站登录后可拿更高清晰度
+- **按站点退出（M13）**：登录卡片新增「清除抖音 / 清除B站 / 清除小红书」，
+  只过期该站 Cookie 并清该 origin 的 WebStorage，其它站点登录态保持不变；
+  粘贴框为空时点导入按钮会**自动读取剪贴板**
 - **Cookie 导入（M12）**：设置页「登录」卡片支持把浏览器导出的 Cookie（Cookie-Editor
   JSON / `Cookie:` 请求头 / Netscape）粘贴导入到 App 的 WebView 会话，按站点选择写入；
   与扫码登录并存（两条路都可用），导入后自动重新检测登录态
@@ -74,6 +77,7 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 | 微博图文（3 图） | 3.2 s 解析出 3 项（作者杨伊琳10）；保存 3 张原图 229,606 / 256,742 / 221,566 B，MediaStore 尺寸正确、无 pending |
 | 微博视频（1 条） | 2.0 s 解析出 1 项；保存 1,896,528 B MP4（h264 720×1280 + AAC 44.1 kHz 立体声，13.72 s） |
 | 登录态检测 | 清空会话后三站均显示「未登录」；用真实浏览器会话后 `Douyin: Logged in · 背影` / `Bilibili: Logged in · Backtraxe` / `Xiaohongshu: Logged in · 山水之间`；清除后恢复未登录；探测不输出 Cookie 值 |
+| 按站点退出 | 三站已登录时点「清除B站」：状态变为 `Bilibili: Not logged in`，抖音/小红书仍 `Logged in`；DB 中 B站 `SESSDATA/bili_jct/DedeUserID` 行消失（仅剩探测页访客 Cookie） |
 | Cookie 导入 | 真实 B站/小红书/抖音 Cookie 通过 UI 导入：小红书 17/17 条名称与值完全写入；B站导入后登录态 `Bilibili: Logged in · Backtraxe` 并能提取/保存 1080P（短视频 9.38 MB，h264 1920×1080）；抖音导入后 `Douyin: Logged in · 背影`；扫码登录按钮仍能打开各站桌面登录页 |
 | 登录专属能力 | B 站登录后同一视频从 480P/26.3 MB 提升到 **1080P/75.2 MB**（h264 1920×1080 + AAC 212.31 s）；小红书真实笔记 6 项；抖音登录后重定向到 `m.douyin.com/share` 的问题已修复（桌面 UA + origin hook 别名） |
 | AcFun 图文（3 图） | 2.0 s 解析出 3 项（作者 AcFun活动）；保存 1,658,046 B PNG + 2,256,625 B PNG + 2,642,498 B JPEG（8000×4500 封面，容器嗅探把 .png 纠正为 .jpg），MediaStore 三行 pending 0 |
@@ -212,7 +216,9 @@ APK 输出：`app/build/outputs/apk/debug/app-debug.apk`。
 2. 点 **抖音 / B站 / 小红书**，App 会用桌面版页面打开该站点（不是「下载 APP」页）；
 3. 在页面里点「登录」，用手机 App 扫码；登录成功后返回；
 4. 粘贴作品链接，点 Extract 即可（会话 Cookie 在应用内共享，重启后仍有效）；
-5. 需要退出时点「清除所有登录态」（会同时清掉各站访客 Cookie 与 WebStorage）。
+5. 退出：可点「清除所有登录态」，也可用每站的「清除抖音 / 清除B站 / 清除小红书」
+   单独退出（只影响该站）；
+6. 导入 Cookie 时，输入框留空直接点导入按钮会读取剪贴板（适合复制后一键导入）。
 
 登录态完全保存在本机 WebView：不导出 Cookie、不写自定义 Cookie 文件、不打印到日志。
 YouTube 走专用提取器，不需要登录；微博公开内容也不需要登录。
@@ -268,6 +274,7 @@ reader pack JSON，替换内置 reader 的**页面提取脚本**与**响应匹�
 - **M10** AcFun 图文 reader（SSR articleInfo）✅
 - **M11** 登录态检测（抖音/B站/小红书，设置页自动探测）✅
 - **M12** Cookie 导入（浏览器导出 → App 内粘贴导入）✅
+- **M13** 按站点退出登录 + 剪贴板导入 ✅
 
 ## 已知限制
 

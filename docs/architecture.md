@@ -300,6 +300,22 @@ Settings 登录卡片 → cookieImportInput（粘贴文本）+ 三站导入按�
   Netscape 文件行（含 `#HttpOnly_` 前缀）。
 - 导入不会清除旧 Cookie，同名 Cookie 覆盖；「清除所有登录态」仍可整体重置。
 
+### 按站点退出（M13）
+
+```
+登录卡片「清除抖音 / 清除B站 / 清除小红书」
+   → SessionManager.clearSite(siteId)
+        · 关键 Cookie 名（sessionid/SESSDATA/web_session…）+ getCookie 可见的全部名字
+        · 每个名字按站点域写一条过期 Cookie（Max-Age=0 + 1970 Expires）
+        · WebStorage.deleteOrigin(站点 origin) 清该站 localStorage/IndexedDB
+        · CookieManager.flush()
+   → 状态「Cleared <site> session.」→ 1s 后重新探测三站
+```
+
+- WebView 没有按域删除 Cookie 的 API，所以用「已知关键名 + 可见名 → 逐条过期」的方式；
+  HttpOnly Cookie 也能通过同名过期覆盖。其它站点完全不受影响。
+- 粘贴框为空时，导入按钮会读取系统剪贴板作为输入（无需额外权限）。
+
 ### 登录态检测（M11）
 
 ```

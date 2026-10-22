@@ -9,6 +9,9 @@
     <string name="login_opening">Opening %1$s…</string>
     <string name="login_cleared">Cleared %1$d session(s).</string>
     <string name="login_clear_failed">Could not clear sessions.</string>
+    <string name="login_clear_douyin">Clear Douyin</string>
+    <string name="login_clear_bilibili">Clear Bilibili</string>
+    <string name="login_clear_xiaohongshu">Clear Xiaohongshu</string>
     <string name="login_import_hint">Paste cookies exported from a browser: Cookie-Editor JSON, a Cookie: header, or Netscape lines. They are written only into this app\'s WebView session.</string>
     <string name="login_import_douyin">Import Douyin</string>
     <string name="login_import_bilibili">Import Bilibili</string>

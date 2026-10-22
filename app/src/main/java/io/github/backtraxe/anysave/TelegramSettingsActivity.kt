@@ -1,6 +1,7 @@
 package io.github.backtraxe.anysave
 
 import android.app.Activity
+import android.content.ClipboardManager
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -50,6 +51,9 @@ class TelegramSettingsActivity : Activity() {
     private lateinit var importDouyinCookies: View
     private lateinit var importBilibiliCookies: View
     private lateinit var importXiaohongshuCookies: View
+    private lateinit var clearDouyinSession: View
+    private lateinit var clearBilibiliSession: View
+    private lateinit var clearXiaohongshuSession: View
 
     private lateinit var probeWebView: WebView
     private val probeHandler = Handler(Looper.getMainLooper())
@@ -85,6 +89,9 @@ class TelegramSettingsActivity : Activity() {
         importDouyinCookies = findViewById(R.id.importDouyinCookies)
         importBilibiliCookies = findViewById(R.id.importBilibiliCookies)
         importXiaohongshuCookies = findViewById(R.id.importXiaohongshuCookies)
+        clearDouyinSession = findViewById(R.id.clearDouyinSession)
+        clearBilibiliSession = findViewById(R.id.clearBilibiliSession)
+        clearXiaohongshuSession = findViewById(R.id.clearXiaohongshuSession)
         setupProbeWebView()
         probeHandler.post { refreshLoginStates() }
 
@@ -106,6 +113,9 @@ class TelegramSettingsActivity : Activity() {
         importDouyinCookies.setOnClickListener { importCookies("douyin") }
         importBilibiliCookies.setOnClickListener { importCookies("bilibili") }
         importXiaohongshuCookies.setOnClickListener { importCookies("xiaohongshu") }
+        clearDouyinSession.setOnClickListener { clearSiteSession("douyin", getString(R.string.login_douyin)) }
+        clearBilibiliSession.setOnClickListener { clearSiteSession("bilibili", getString(R.string.login_bilibili)) }
+        clearXiaohongshuSession.setOnClickListener { clearSiteSession("xiaohongshu", getString(R.string.login_xiaohongshu)) }
     }
 
     private fun currentConfig(): TelegramConfig = TelegramConfig(
@@ -338,7 +348,11 @@ class TelegramSettingsActivity : Activity() {
     }
 
     private fun importCookies(siteId: String) {
-        val text = cookieImportInput.text?.toString().orEmpty()
+        var text = cookieImportInput.text?.toString().orEmpty().trim()
+        if (text.isBlank()) {
+            // Convenience: copy the export, then tap the site's import button.
+            text = readClipboard()
+        }
         if (text.isBlank()) {
             showSessionsStatus(getString(R.string.cookie_import_empty))
             return
@@ -355,6 +369,28 @@ class TelegramSettingsActivity : Activity() {
         showSessionsStatus(getString(R.string.cookie_import_done, imported))
         cookieImportInput.setText("")
         probeHandler.postDelayed({ refreshLoginStates() }, 1_200)
+    }
+
+    private fun clearSiteSession(siteId: String, label: String) {
+        val cleared = try {
+            SessionManager.clearSite(siteId)
+        } catch (t: Throwable) {
+            0
+        }
+        val text = if (cleared > 0) {
+            getString(R.string.session_clear_site_done, label)
+        } else {
+            getString(R.string.session_clear_site_failed, label)
+        }
+        showSessionsStatus(text)
+        probeHandler.postDelayed({ refreshLoginStates() }, 1_000)
+    }
+
+    private fun readClipboard(): String {
+        val manager = getSystemService(CLIPBOARD_SERVICE) as? ClipboardManager ?: return ""
+        val clip = manager.primaryClip ?: return ""
+        if (clip.itemCount == 0) return ""
+        return clip.getItemAt(0).coerceToText(this).toString().trim()
     }
 
     private fun clearAllSessions() {

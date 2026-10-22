@@ -592,3 +592,24 @@ daemon `127.0.0.1:10086`）在用户真实浏览器里读取会话，再用 debu
 - 小红书在风控解除后的完整导入→提取路径（导入与登录态已验证，提取被 sec 页拦截）
 - 抖音导入后的完整提取（登录态已验证；提取路径此前用 CDP 注入会话验证过）
 - Cookie-Editor JSON 的端到端 UI 导入（解析有单测；UI 实测用的是 header/Netscape）
+
+## 实验 Z：按站点退出 + 剪贴板导入（M13）
+
+| 场景 | 结果 |
+|---|---|
+| 三站已登录 | 状态 `Douyin: Logged in · 背影` / `Bilibili: Logged in · Backtraxe` / `Xiaohongshu: Logged in · 山水之间`；每站下方出现「Clear Douyin/Bilibili/Xiaohongshu」按钮 |
+| 只清除 B 站 | 点「Clear Bilibili」→ 状态立即刷新为 `Bilibili: Not logged in`，**抖音/小红书保持 Logged in**；DB 中 B 站仍剩 6 条探测页访客 Cookie，但 `SESSDATA/bili_jct/DedeUserID` 行已消失 |
+| 恢复 B 站 | 重新粘贴短 Cookie 头导入 → `Bilibili: Logged in · Backtraxe`，三站恢复全登录 |
+| 剪贴板兜底 | 输入框留空时，导入按钮会读取 `ClipboardManager.primaryClip`（代码路径；安卓 15 模拟器没有可直接写剪贴板的 shell 命令，因此未做 UI 自动化，解析/导入主路径已用输入框验证） |
+
+## 实现结论（M13 追加）
+
+51. WebView 没有按域删除 Cookie 的 API：用「关键 Cookie 名 + getCookie 可见名 → 逐条过期」
+    可以做到单站退出，并顺带清掉该 origin 的 WebStorage。
+52. 单站退出必须只写该站域名，否则会误伤其它登录态；实测清 B 站后抖音/小红书状态不变。
+53. 导入按钮的空输入框 → 读剪贴板是成本极低的顺滑体验，不引入任何权限。
+
+## 未验证项（M13 追加）
+
+- 剪贴板兜底的 UI 自动化（模拟器剪贴板不易从 adb 写入；代码路径简单，主导入路径已验证）
+- 站点自身的服务端注销（当前是本地会话清理，不是调用站点 logout 接口）

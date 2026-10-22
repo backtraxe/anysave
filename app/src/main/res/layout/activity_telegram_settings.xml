@@ -542,6 +542,58 @@
                     android:textSize="14sp" />
             </LinearLayout>
 
+            <!-- Per-site logout: expires just this site's cookies + web storage. -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:orientation="horizontal">
+
+                <TextView
+                    android:id="@+id/clearDouyinSession"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_text_button"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:fontFamily="sans-serif-medium"
+                    android:gravity="center"
+                    android:text="@string/login_clear_douyin"
+                    android:textColor="@color/preview_danger"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/clearBilibiliSession"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="4dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_text_button"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:fontFamily="sans-serif-medium"
+                    android:gravity="center"
+                    android:text="@string/login_clear_bilibili"
+                    android:textColor="@color/preview_danger"
+                    android:textSize="13sp" />
+
+                <TextView
+                    android:id="@+id/clearXiaohongshuSession"
+                    android:layout_width="0dp"
+                    android:layout_height="40dp"
+                    android:layout_marginStart="4dp"
+                    android:layout_weight="1"
+                    android:background="@drawable/bg_text_button"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:fontFamily="sans-serif-medium"
+                    android:gravity="center"
+                    android:text="@string/login_clear_xiaohongshu"
+                    android:textColor="@color/preview_danger"
+                    android:textSize="13sp" />
+            </LinearLayout>
+
             <TextView
                 android:id="@+id/sessionsStatus"
                 android:layout_width="match_parent"

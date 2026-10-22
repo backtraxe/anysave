@@ -9,7 +9,10 @@
     <string name="login_opening">正在打开 %1$s…</string>
     <string name="login_cleared">已清除 %1$d 个登录态。</string>
     <string name="login_clear_failed">清除登录态失败。</string>
-    <string name="login_import_hint">粘贴浏览器导出的 Cookie：Cookie-Editor JSON、Cookie 请求头或 Netscape 行均可。只写入本应用 WebView 的会话。</string>
+    <string name="login_clear_douyin">清除抖音</string>
+    <string name="login_clear_bilibili">清除B站</string>
+    <string name="login_clear_xiaohongshu">清除小红书</string>
+    <string name="login_import_hint">粘贴浏览器导出的 Cookie：Cookie-Editor JSON、Cookie 请求头或 Netscape 行均可。也可以先复制、再点导入按钮（输入框为空时自动读剪贴板）。只写入本应用 WebView 的会话。</string>
     <string name="login_import_douyin">导入抖音</string>
     <string name="login_import_bilibili">导入B站</string>
     <string name="login_import_xiaohongshu">导入小红书</string>

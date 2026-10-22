@@ -12,6 +12,8 @@
     <string name="status_timeout">未捕获到目标响应（超时）。若该页面需要登录，请先在设置 → 登录中扫码登录。</string>
     <string name="status_direct_failed">页面提取失败（专用提取器未拿到数据）。</string>
     <string name="status_login_opened">已打开登录页。用手机扫码登录后返回，再粘贴作品链接提取。</string>
+    <string name="session_clear_site_done">已清除%1$s登录态。</string>
+    <string name="session_clear_site_failed">清除%1$s登录态失败。</string>
     <string name="cookie_import_empty">请先粘贴 Cookie。</string>
     <string name="cookie_import_done">已导入 %1$d 条 Cookie。</string>
     <string name="cookie_import_failed">Cookie 导入失败（请检查导出格式）。</string>
