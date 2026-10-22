@@ -139,4 +139,29 @@ class XiaohongshuParserTest {
         javaClass.classLoader!!.getResourceAsStream(path)!!
             .bufferedReader()
             .use { it.readText() }
+
+    @Test
+    fun `parses desktop video note stream shape`() {
+        val body = """
+            {"noteId":"abc123","note":{"type":"video","title":"clip","desc":"d",
+              "user":{"nickname":"u"},
+              "imageList":[{"fileId":"cover-file"}],
+              "video":{"media":{"video":{"duration":14},
+                "stream":{"EF4":[
+                  {"masterUrl":"http://sns-video.xhscdn.com/hd.mp4","backupUrls":["http://sns-bak.xhscdn.com/hd.mp4"],"width":960,"height":720,"videoBitrate":1200000,"videoDuration":13833,"qualityType":"HD"},
+                  {"masterUrl":"http://sns-video.xhscdn.com/fhd.mp4","backupUrls":["http://sns-bak.xhscdn.com/fhd.mp4"],"width":1440,"height":1080,"videoBitrate":2200000,"videoDuration":14000,"qualityType":"FHD"}
+                ]}},
+               "image":{"firstFrameFileid":"frame-file"}}}}
+        """.trimIndent()
+        val post = XiaohongshuParser.parse(body, "https://www.xiaohongshu.com/explore/abc123")!!
+        val item = post.items.single()
+        assertEquals(MediaKind.VIDEO, item.kind)
+        assertEquals("https://sns-video.xhscdn.com/fhd.mp4", item.url)
+        assertEquals("https://sns-bak.xhscdn.com/fhd.mp4", item.fallbackUrl)
+        assertEquals(1440, item.width)
+        assertEquals(1080, item.height)
+        assertEquals(14_000L, item.durationMs)
+        assertTrue(item.previewUrl.startsWith("https://ci.xiaohongshu.com/"))
+    }
+
 }

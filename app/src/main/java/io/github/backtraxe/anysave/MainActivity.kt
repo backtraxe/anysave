@@ -244,7 +244,7 @@ class MainActivity : Activity() {
             snapshot.hits.isEmpty() -> {
                 statusText.text = getString(R.string.status_timeout)
                 Log.i(TAG, "timeout: no matching response in ${snapshot.elapsedMs}ms")
-                diagnoseTimeoutLogin()
+                diagnoseTimeoutLogin(snapshot.pageUrl)
             }
 
             else -> {
@@ -257,7 +257,7 @@ class MainActivity : Activity() {
                 snapshot.hits.forEach {
                     Log.i(TAG, "hit ${it.via} status=${it.status} len=${it.length} ${it.url}")
                 }
-                diagnoseTimeoutLogin()
+                diagnoseTimeoutLogin(snapshot.pageUrl)
             }
         }
     }
@@ -320,8 +320,10 @@ class MainActivity : Activity() {
      * the current site's session and replace the generic timeout text with a
      * concrete next step.
      */
-    private fun diagnoseTimeoutLogin() {
-        val url = urlInput.text?.toString()?.trim().orEmpty()
+    private fun diagnoseTimeoutLogin(pageUrl: String) {
+        // Prefer the page the extraction actually ended on (redirects included);
+        // fall back to the input field for cases without a navigated page.
+        val url = pageUrl.ifBlank { urlInput.text?.toString()?.trim().orEmpty() }
         val readerId = SiteReader.forUrl(url)?.id ?: return
         val label = when (readerId) {
             "douyin" -> getString(R.string.login_douyin)

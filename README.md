@@ -12,7 +12,7 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 
 ## 状态
 
-**M16 提取超时的登录态诊断**（可编译、可运行、已端到端验证）。完整链路：
+**M17 小红书视频笔记 + 诊断回归 + JSON 导入验证**（可编译、可运行、已端到端验证）。完整链路：
 
 - 输入链接 → WebView 打开页面
 - 文档开始时注入响应监听（`app/src/main/res/raw/hook.js`），命中时连同响应体一起留下
@@ -34,6 +34,13 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 - **登录/会话（M9）**：设置页「登录」用**站点桌面版登录页**（App 内 WebView、
   手机扫码），登录态就是 WebView 的 Cookie，只存在应用私有目录；可一键清除
   所有站点登录态。抖音提取必须登录，B 站登录后可拿更高清晰度
+- **小红书视频笔记（M17）**：桌面页视频流使用 `EF4/EF5/...` 键（而非旧 `h264`），
+  parser 统一收集所有 stream 数组、取最大分辨率/码率，支持 `backupUrls` 兜底与封面回退；
+  实测视频笔记保存 5,708,546 B（h264 1440×1080 + AAC 13.83 s）
+- **超时诊断回归（M17）**：B站/小红书超时诊断的登录/未登录两分支均真机验证；诊断改用
+  提取结束时的实际页面 URL（重定向后也不会认错站点）
+- **Cookie-Editor JSON 导入（M17）**：用 5 条真实 Cookie 的 JSON 数组走 UI 导入，
+  DB 中 5/5 名称与值完全一致，B站登录态恢复
 - **超时登录诊断（M16）**：提取超时/响应为空时，自动用隐藏 WebView 探测当前站点登录态，
   状态栏直接给出结论：未登录 →「去 设置→登录 扫码或导入 Cookie 后重试」；已登录 →
   「站点可能改版或响应为空」，不用再猜原因
@@ -85,6 +92,9 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 | 微博图文（3 图） | 3.2 s 解析出 3 项（作者杨伊琳10）；保存 3 张原图 229,606 / 256,742 / 221,566 B，MediaStore 尺寸正确、无 pending |
 | 微博视频（1 条） | 2.0 s 解析出 1 项；保存 1,896,528 B MP4（h264 720×1280 + AAC 44.1 kHz 立体声，13.72 s） |
 | 登录态检测 | 清空会话后三站均显示「未登录」；用真实浏览器会话后 `Douyin: Logged in · 背影` / `Bilibili: Logged in · Backtraxe` / `Xiaohongshu: Logged in · 山水之间`；清除后恢复未登录；探测不输出 Cookie 值 |
+| 小红书视频笔记 | 桌面页视频笔记：`items=1`（作者燃擎体育，13s）；保存 5,708,546 B，ffprobe h264 **1440×1080** + AAC 13.83 s；旧 `h264` 结构仍兼容（单测 77 条） |
+| 超时诊断回归 | B站无效 BV：登录时「Bilibili looks logged in…」，清除登录态后「You are not logged in to Bilibili…」；小红书风控/坏链接：登录时「Xiaohongshu looks logged in…」，清除后「You are not logged in to Xiaohongshu…」 |
+| Cookie-Editor JSON | UI 导入 5 条 JSON Cookie：DB 中 5/5 名称与值完全一致，`Bilibili: Logged in · Backtraxe` |
 | 超时登录诊断 | 抖音未登录时提取：状态「You are not logged in to Douyin. Open Settings → Login, sign in, then retry.」；登录后提取 profile 页（必然不产生 detail）超时：状态「Douyin looks logged in. The site may have changed or the response was empty.」，页面同时显示已登录的「背影」主页 |
 | 小红书桌面页 | 登录态下提取真实笔记：`items=12`、作者「让心自由」（2.9 s），12 张图全部保存成功（`saved=12 failed=0`，单张最大 ~23 MB）；此前移动 UA 同一路径会拿 10 KB 的 sec 风控页 |
 | B 站画质 | 同一 17 秒视频：720P 限制下保存 4,095,857 B（ffprobe h264 **1280×720** + AAC）；不限制时 9,384,650 B（**1920×1080**）；切换后状态 `Current: 720P/1080P/Auto` 正确 |
@@ -289,6 +299,7 @@ reader pack JSON，替换内置 reader 的**页面提取脚本**与**响应匹�
 - **M14** B 站画质选择（Auto/1080P/720P/480P）✅
 - **M15** 小红书桌面页（风控规避）✅
 - **M16** 提取超时登录态诊断 ✅
+- **M17** 小红书视频笔记 + 诊断回归 + JSON 导入验证 ✅
 
 ## 已知限制
 

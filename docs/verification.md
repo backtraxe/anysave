@@ -680,3 +680,40 @@ daemon `127.0.0.1:10086`）在用户真实浏览器里读取会话，再用 debu
 
 - B 站/小红书超时诊断的真机路径（代码共用；本次只实测抖音两分支）
 - 站点挑战页（captcha/jsvm）与「未登录」的进一步区分
+
+## 实验 AD：小红书视频笔记 + 诊断回归 + JSON 导入（M17）
+
+### 1) 小红书视频笔记（桌面页）
+| 项 | 结果 |
+|---|---|
+| 数据 | 桌面视频笔记 `note.video.media.stream` 用 `EF4`（2 档：960×720 HD / 1440×1080 FHD）而非 `h264`；`video.image.firstFrameFileid` 有封面；`mediaV2` 给出 1440×1080 展示尺寸 |
+| 解析 | 新逻辑收集所有 stream 数组取最大分辨率/码率；`items=1`、作者「燃擎体育」、时长 13s（2.3s 解析） |
+| 保存 | `saved=1 failed=0`：5,708,546 B；ffprobe h264 **1440×1080** + AAC 13.83 s，解码正常 |
+| 兼容 | 旧 `h264` fixture 仍通过（77 条单测全绿） |
+
+### 2) B 站 / 小红书超时诊断回归
+| 站点 | 已登录 | 已清除登录态 |
+|---|---|---|
+| B 站（无效 BV，超时） | `Bilibili looks logged in. The site may have changed or the response was empty.` | `You are not logged in to Bilibili. Open Settings → Login, sign in, then retry.` |
+| 小红书（坏链接/风控页） | `Xiaohongshu looks logged in. The site may have changed or the response was empty.` | `You are not logged in to Xiaohongshu. Open Settings → Login, sign in, then retry.` |
+
+期间修复：诊断站点改用 `snapshot.pageUrl`（实际落点），不再依赖输入框（输入框残留旧链接时曾把 B 站超时误报成小红书）。
+
+### 3) Cookie-Editor JSON 的 UI 导入
+- 用 5 条真实 B 站 Cookie 的 JSON 数组（Cookie-Editor 字段：name/value/domain/path/secure/httpOnly）粘贴导入；
+- DB 校验：5/5 名称与值完全一致；登录态刷新为 `Bilibili: Logged in · Backtraxe`；
+- 最终三站均恢复登录。
+
+## 实现结论（M17 追加）
+
+63. 小红书桌面视频流的键名会变化（h264 → EF4/EF5/…），parser 必须「按结构收集」而不是
+    写死某个 stream key；同时保留旧结构兼容。
+64. 视频 fallback 与封面回退能明显提升弱网/风控下的成功率：`backupUrls[0]` 进
+    `fallbackUrl`，封面回退到 note 首图。
+65. 失败诊断的站点判断必须用实际页面 URL；输入框可能残留旧链接或被重定向，会误导结论。
+66. Cookie-Editor JSON 的字段解析在真实数据上验证通过（此前只有单测），导入路径完整。
+
+## 未验证项（M17 追加）
+
+- 小红书视频笔记在登录态丢失/风控下的失败路径（当前诊断已验证）
+- 其它 stream 键（EF5/EF6/EF7）在真实笔记中的组合情况

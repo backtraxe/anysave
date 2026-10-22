@@ -50,7 +50,7 @@ object XiaohongshuParser {
         val items = ArrayList<MediaItem>()
         val video = note.optJSONObject("video")
         if (video != null) {
-            addVideo(noteId, video, items)
+            addVideo(noteId, video, note, items)
         } else {
             addImages(noteId, note, items)
         }
@@ -127,19 +127,90 @@ object XiaohongshuParser {
         }
     }
 
-    private fun addVideo(noteId: String, video: JSONObject, items: MutableList<MediaItem>) {
-        val playUrl = videoUrl(video) ?: return
-        val (width, height) = videoDimensions(video)
+    private fun addVideo(
+        noteId: String,
+        video: JSONObject,
+        note: JSONObject,
+        items: MutableList<MediaItem>,
+    ) {
+        val choice = bestVideoStream(video)
+        val playUrl = choice?.entry?.let { normalizeUrl(it.optString("masterUrl")) }
+            ?: normalizeUrl(video.optString("url"))
+            ?: return
+        val entry = choice?.entry
+        // Prefer the note's display dimensions (mediaV2) when present: the
+        // per-stream width/height are the encoded track size, not the note's.
+        val displayDimensions = videoDimensions(video)
+        val (width, height) = if (displayDimensions.first > 0 && displayDimensions.second > 0) {
+            displayDimensions
+        } else if (entry != null && entry.optInt("width") > 0) {
+            entry.optInt("width") to entry.optInt("height")
+        } else {
+            0 to 0
+        }
+        val duration = entry?.optLong("duration")?.takeIf { it > 0 }
+            ?: entry?.optLong("videoDuration")?.takeIf { it > 0 }
+            ?: videoDurationMs(video)
         items += MediaItem(
             id = "$noteId-video-1",
             kind = MediaKind.VIDEO,
             url = playUrl,
-            previewUrl = videoCover(video).orEmpty(),
+            previewUrl = videoCover(video) ?: noteCover(note).orEmpty(),
+            fallbackUrl = choice?.backup.orEmpty(),
             width = width,
             height = height,
-            durationMs = videoDurationMs(video),
+            durationMs = duration,
             index = 1,
         )
+    }
+
+    private data class VideoStreamChoice(val entry: JSONObject, val backup: String?)
+
+    /**
+     * Desktop note pages expose video tracks under stream keys `EF4/EF5/...`
+     * (newer format) instead of `h264`; both look the same per-entry
+     * (`masterUrl`, `backupUrls`, `width`, `height`, `videoBitrate`,
+     * `videoDuration`). Collect all of them and take the largest rendition.
+     */
+    private fun bestVideoStream(video: JSONObject): VideoStreamChoice? {
+        val media = video.optJSONObject("media") ?: video
+        val stream = media.optJSONObject("stream") ?: return null
+        val candidates = ArrayList<JSONObject>()
+        for (key in stream.keys()) {
+            val array = stream.optJSONArray(key) ?: continue
+            for (i in 0 until array.length()) {
+                array.optJSONObject(i)?.let { candidates += it }
+            }
+        }
+        if (candidates.isEmpty()) return null
+        val best = candidates.maxWithOrNull(
+            compareBy(
+                { it.optInt("width") * it.optInt("height") },
+                { it.optLong("videoBitrate") },
+                { QUALITY_RANK[it.optString("qualityType").uppercase()] ?: 0 },
+            ),
+        ) ?: return null
+        var backup: String? = null
+        val backups = best.optJSONArray("backupUrls")
+        if (backups != null) {
+            for (i in 0 until backups.length()) {
+                val url = normalizeUrl(backups.optString(i))
+                if (url != null) {
+                    backup = url
+                    break
+                }
+            }
+        }
+        return VideoStreamChoice(best, backup)
+    }
+
+    /** Video notes usually carry their own cover in the note imageList. */
+    private fun noteCover(note: JSONObject): String? {
+        val images = note.optJSONArray("imageList") ?: return null
+        val first = images.optJSONObject(0) ?: return null
+        val fileId = first.optString("fileId").trim()
+        if (fileId.isBlank()) return null
+        return normalizeUrl("https://ci.xiaohongshu.com/$fileId")
     }
 
     /** Full-resolution original; URL has no extension (server sniffs the bytes). */
@@ -263,5 +334,11 @@ object XiaohongshuParser {
         }
     }
 
-    private val QUALITY_RANK = mapOf("LD" to 1, "SD" to 2, "HD" to 3)
+    private val QUALITY_RANK = mapOf(
+        "LD" to 1,
+        "SD" to 2,
+        "HD" to 3,
+        "FHD" to 4,
+        "UHD" to 5,
+    )
 }
