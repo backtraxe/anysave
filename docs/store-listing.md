@@ -15,7 +15,7 @@
 | 语言 | 简体中文 / English |
 | 价格 | 免费、无广告、无内购 |
 | 许可证 | GPL-3.0（含 NewPipeExtractor，GPL-3.0） |
-| 应用图标 | `docs/images/app-icon.png`（青绿渐变 + 奶油媒体卡片双叠 + 珊瑚点缀；自适应 + monochrome） |
+| 应用图标 | `docs/images/app-icon.png`（青绿渐变 + 奶油「下载箭头落入收纳袋」+ 珊瑚点缀；自适应 + monochrome） |
 | 源码 | https://github.com/backtraxe/anysave |
 | 下载 | https://github.com/backtraxe/anysave/releases |
 
@@ -82,11 +82,11 @@ Telegram 上传是可选功能，由用户配置自己的 Bot Token 与 Chat ID�
 
 - 自适应图标（API 26+）：`res/mipmap-anydpi-v26/ic_launcher.xml`（+ `ic_launcher_round.xml`）
 - 背景：`res/drawable/ic_launcher_background.xml`（`#2DD4BF → #0F766E → #0B4F4A` 青绿对角渐变）
-- 前景：`res/drawable/ic_launcher_foreground.xml`（奶油 `#FFF6E9` 双卡片叠层 + 播放三角负空间 +
+- 前景：`res/drawable/ic_launcher_foreground.xml`（奶油 `#FFF6E9` 下载箭头 + 收纳袋 +
   珊瑚 `#F9735B` 点缀，全部落在 66dp 安全区）
 - 主题图标：`res/drawable/ic_launcher_monochrome.xml`
 - 预览：`docs/images/app-icon.png`
-- 语义：媒体卡片 = 图片/视频，播放三角 = 可播放内容，双叠 = 批量收藏
+- 语义：向下箭头 = 下载，收纳袋 = 保存/留存（避免被误读为播放器）
 
 ## 色彩系统（与图标一致）
 
@@ -124,6 +124,7 @@ Telegram 上传是可选功能，由用户配置自己的 Bot Token 与 Chat ID�
 
 | 版本 | 内容 |
 |---|---|
+| 0.24.0 | 图标改为下载箭头 + 收纳袋（青绿配色不变） |
 | 0.23.0 | 青绿品牌配色；图标与 App 内颜色统一（青绿/珊瑚/奶油） |
 | 0.22.0 | 品牌图标重设计（深紫/奶油/薄荷，书签+播放） |
 | 0.21.0 | 首版自适应图标（橙/下载箭头） |

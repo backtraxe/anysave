@@ -1,26 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Media stack mark: two layered cards with a play cutout and a coral spark.
-     Teal + cream + coral, matching the in-app palette. -->
+<!-- Download/save mark: cream arrow dropping into a cream pocket, coral spark.
+     Teal background + cream + coral, matching the in-app palette. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Back card: offset, translucent cream -->
+    <!-- Arrow shaft -->
     <path
-        android:fillColor="#59FFF6E9"
-        android:pathData="M39,28 H57 A9,9 0 0 1 66,37 V55 A9,9 0 0 1 57,64 H39 A9,9 0 0 1 30,55 V37 A9,9 0 0 1 39,28 Z" />
+        android:pathData="M54,26 L54,52"
+        android:strokeColor="#FFF6E9"
+        android:strokeLineCap="round"
+        android:strokeWidth="9" />
 
-    <!-- Front card: cream with a negative-space play triangle -->
+    <!-- Arrow head -->
+    <path
+        android:pathData="M43,42 L54,53 L65,42"
+        android:strokeColor="#FFF6E9"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="9" />
+
+    <!-- Pocket: solid cream tray with rounded bottom corners, open top -->
     <path
         android:fillColor="#FFF6E9"
-        android:fillType="evenOdd"
-        android:pathData="M49,40 H67 A9,9 0 0 1 76,49 V67 A9,9 0 0 1 67,76 H49 A9,9 0 0 1 40,67 V49 A9,9 0 0 1 49,40 Z
-                          M53,51 V65 L66,58 Z" />
+        android:pathData="M33,60 H75 V70 A8,8 0 0 1 67,78 H41 A8,8 0 0 1 33,70 Z" />
 
-    <!-- Coral spark (echoes the selection accent used in the app UI) -->
+    <!-- Coral spark (same accent used for selection in the app UI) -->
     <path
         android:fillColor="#F9735B"
-        android:pathData="M74,34 m-4,0 a4,4 0 1 0 8,0 a4,4 0 1 0 -8,0" />
+        android:pathData="M73,29 m-4,0 a4,4 0 1 0 8,0 a4,4 0 1 0 -8,0" />
 </vector>
