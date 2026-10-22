@@ -490,3 +490,41 @@ M2 的保存只消费页面已经收到的 CDN 直链。先验证这些直链本
 - A 站视频（HLS）与番剧页面
 - 动态/评论/专栏等其他 A 站内容形态
 - 文章内视频嵌入（如有）
+
+## 实验 W：登录态检测（M11）
+
+设置页打开时用一个隐藏的 1×1 WebView（共享会话 CookieStore、桌面 UA）依次探测三站，结果写入
+Login 卡片的 `sessionsStatus`：
+
+| 站点 | 探测方式 | 判定 |
+|---|---|---|
+| 抖音 | `www.douyin.com/user/self` 的 `document.title` | `<昵称>的抖音 - 抖音` = 已登录（昵称）；`抖音-记录美好生活` = 未登录 |
+| B 站 | `api.bilibili.com/x/web-interface/nav` 的 JSON | `data.isLogin` + `data.uname` |
+| 小红书 | `www.xiaohongshu.com/explore` 的 `__INITIAL_STATE__.user.loggedIn`（Vue ref `.value`） | true/false（游客 `web_session` 不等于登录） |
+
+| 场景 | 结果 |
+|---|---|
+| 清空会话后 | 三站均 `Not logged in`；`清除所有登录态` 后**同一屏**自动刷新，仍为三站未登录（0.11.1 修复） |
+| 注入抖音真实 Cookie（63 条） | `Douyin: Logged in · 背影`，B 站/小红书保持 `Not logged in`；重复 2 轮一致 |
+| 隐藏探测页 | CDP 目标 1×1、alpha=0；Settings UI dump 无 WebView 节点、无白块；可正常滚动 |
+| Cookie 泄漏 | 全量 logcat 检索 44 个抖音 Cookie 值（长度 ≥8）：**0 泄漏**；无 `sessionid=`/`SESSDATA=`/`web_session=` 日志 |
+| 回归 | 探测后 B 站视频提取仍 `items=1`、面板正常；无崩溃 |
+| 清除后的 Cookie DB | 仍会留下探测页产生的访客 Cookie（如 `.douyin.com ttwid`），但无 `sessionid`/`SESSDATA`；以状态文本为准 |
+
+## 实现结论（M11 追加）
+
+39. HttpOnly Cookie 无法用 `CookieManager` 枚举，登录态改为「共享会话的隐藏 WebView + 页面信号」
+    判断，既避开限制也不导出 Cookie。
+40. 三站信号差异大：抖音用个人页标题、B 站用 nav JSON、小红书用 Vuex ref 的 `.value`；
+    统一成 `LoginSignals` 纯 JVM 解析并单测。
+41. 复用同一 WebView 连续探测存在导航竞态（清除后立刻重探会读到空 title，误报「检测失败」）；
+    0.11.1 用 `stopLoading` + 预期 host gate + onPageStarted 重置 + 空 payload 重试修复，
+    同一屏清除回归 2 轮通过。
+42. 探测页本身会产生访客 Cookie，因此「清除后 Cookie 行数为 0」不是正确验收标准；
+    登录态应以状态文本/账号信息为准。
+
+## 未验证项（M11 追加）
+
+- B 站/小红书真实登录后的正例（环境里只有抖音的有效 Cookie 文件；其余两组仅验证未登录路径与解析单测）
+- 真实扫码登录后的即时状态刷新（需要人工扫码；已验证注入会话后的检测）
+- 登录过期后的状态自动降级（当前重新打开设置即重新探测）

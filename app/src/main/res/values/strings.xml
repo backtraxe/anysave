@@ -13,6 +13,12 @@
     <string name="status_timeout">No matching response captured (timeout). If this page needs a login, use Settings → Login first.</string>
     <string name="status_direct_failed">Could not extract this page (dedicated extractor failed).</string>
     <string name="status_login_opened">Login page opened. Scan the QR code with your phone, then go back and paste a post link.</string>
+    <string name="login_state_checking">Checking login state…</string>
+    <string name="login_state_logged_in">Logged in</string>
+    <string name="login_state_logged_in_as">Logged in · %1$s</string>
+    <string name="login_state_logged_out">Not logged in</string>
+    <string name="login_state_failed">Check failed</string>
+    <string name="login_state_line">%1$s: %2$s</string>
     <string name="status_saving">Saving %1$d item(s) to the gallery…</string>
     <string name="status_saved">%1$d item(s) saved to the AnySave album</string>
     <string name="album_open_failed">No gallery app available.</string>

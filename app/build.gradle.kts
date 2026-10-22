@@ -37,8 +37,8 @@ android {
         applicationId = "io.github.backtraxe.anysave"
         minSdk = 26
         targetSdk = 35
-        versionCode = 14
-        versionName = "0.10.0"
+        versionCode = 16
+        versionName = "0.11.1"
     }
 
     signingConfigs {

@@ -282,6 +282,25 @@ MainActivity.handleExternalOpenUrl(url)
   会一并清掉微博访客 Cookie 等。
 - 不提供「已登录/未登录」状态：HttpOnly Cookie（如 SESSDATA）无法通过 CookieManager
   枚举，判断会失真；以页面与提取结果为准。
+### 登录态检测（M11）
+
+```
+Settings onCreate → 隐藏 1×1 WebView（alpha=0，共享同一 CookieStore，桌面 UA）
+   依次 loadUrl + onPageFinished + 延迟 → evaluateJavascript（只读）
+   ├─ 抖音    www.douyin.com/user/self
+   │          title == "<昵称>的抖音 - 抖音" → 已登录（昵称）；"抖音-记录美好生活" → 未登录
+   ├─ B 站   api.bilibili.com/x/web-interface/nav
+   │          JSON data.isLogin / data.uname → 已登录（uname）/ 未登录
+   └─ 小红书 www.xiaohongshu.com/explore
+              window.__INITIAL_STATE__.user.loggedIn（Vue ref 的 .value）→ 已登录/未登录
+   ↓
+LoginSignals（纯 JVM 解析，单测覆盖）→ sessionsStatus 三行状态
+```
+
+- 探测页与主 WebView 共享会话，因此「登录页扫码回来后重新打开设置」即可看到最新状态；
+  「清除所有登录态」后自动重新探测。
+- 隐藏 WebView 只加载站点首页/会话状态端点，不触发内容 API、不导出 Cookie；页面在
+  Activity destroy 时销毁。单站超时 12 s，失败显示「检测失败」。
 - 安全边界：release 关闭 WebView 调试、禁止明文、无 JS 接口；debug 包的 CDP 仅用于测试，
   不可外发。YouTube 不需要登录；微博公开内容免登录。
 

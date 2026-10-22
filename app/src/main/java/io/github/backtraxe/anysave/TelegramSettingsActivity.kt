@@ -2,12 +2,19 @@ package io.github.backtraxe.anysave
 
 import android.app.Activity
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.view.View
+import android.view.ViewGroup
 import android.widget.EditText
 import android.widget.Switch
 import android.widget.TextView
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.Toast
+import io.github.backtraxe.anysave.model.DESKTOP_CHROME_UA
 import io.github.backtraxe.anysave.reader.ReaderPackRepository
+import io.github.backtraxe.anysave.session.LoginSignals
 import io.github.backtraxe.anysave.session.SessionManager
 import io.github.backtraxe.anysave.telegram.TelegramClient
 import io.github.backtraxe.anysave.telegram.TelegramConfig
@@ -40,6 +47,16 @@ class TelegramSettingsActivity : Activity() {
     private lateinit var clearSessions: View
     private lateinit var sessionsStatus: TextView
 
+    private lateinit var probeWebView: WebView
+    private val probeHandler = Handler(Looper.getMainLooper())
+    private val loginResults = arrayOfNulls<LoginSignals.Result>(LOGIN_PROBES.size)
+    private var probeIndex = -1
+    private var probeGeneration = 0
+    private var probePageLoaded = false
+    private var probeExpectedHost = ""
+    private var probeRetries = 0
+    private var checkingLoginState = false
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_telegram_settings)
@@ -60,6 +77,8 @@ class TelegramSettingsActivity : Activity() {
         loginXiaohongshu = findViewById(R.id.loginXiaohongshu)
         clearSessions = findViewById(R.id.clearSessions)
         sessionsStatus = findViewById(R.id.sessionsStatus)
+        setupProbeWebView()
+        probeHandler.post { refreshLoginStates() }
 
         val saved = TelegramSettings.load(this)
         tokenInput.setText(saved.botToken)
@@ -139,6 +158,159 @@ class TelegramSettingsActivity : Activity() {
         }.start()
     }
 
+    private fun setupProbeWebView() {
+        probeWebView = WebView(this).apply {
+            settings.javaScriptEnabled = true
+            settings.domStorageEnabled = true
+            settings.userAgentString = DESKTOP_CHROME_UA
+            alpha = 0f
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+            layoutParams = ViewGroup.LayoutParams(1, 1)
+            webViewClient = object : WebViewClient() {
+                override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                    // A new navigation starts: only the expected probe page may
+                    // schedule an evaluation (avoid stale onPageFinished events
+                    // when the reused WebView is re-targeted quickly).
+                    if (url != null && hostOf(url) == probeExpectedHost) probePageLoaded = false
+                }
+
+                override fun onPageFinished(view: WebView?, url: String?) {
+                    if (!checkingLoginState || probePageLoaded) return
+                    if (url == null || hostOf(url) != probeExpectedHost) return
+                    probePageLoaded = true
+                    val delay = LOGIN_PROBES.getOrNull(probeIndex)?.delayMs ?: 0L
+                    val index = probeIndex
+                    val generation = probeGeneration
+                    probeHandler.postDelayed({
+                        if (generation == probeGeneration && index == probeIndex) {
+                            evaluateProbe(index, generation)
+                        }
+                    }, delay)
+                }
+            }
+        }
+        (findViewById<ViewGroup>(android.R.id.content)).addView(probeWebView)
+    }
+
+    /**
+     * Runs three read-only session probes in a hidden WebView that shares the
+     * app's cookies (M11): douyin user/self title, bilibili nav JSON, xiaohongshu
+     * __INITIAL_STATE__.user.loggedIn. No cookie values leave the process.
+     */
+    private fun refreshLoginStates() {
+        if (checkingLoginState) return
+        checkingLoginState = true
+        probeGeneration += 1
+        probeWebView.stopLoading()
+        for (i in loginResults.indices) loginResults[i] = null
+        renderLoginStates(checking = true)
+        startProbe(0, probeGeneration)
+    }
+
+    private fun startProbe(index: Int, generation: Int) {
+        if (generation != probeGeneration) return
+        if (index >= LOGIN_PROBES.size) {
+            checkingLoginState = false
+            renderLoginStates(checking = false)
+            return
+        }
+        probeIndex = index
+        probePageLoaded = false
+        probeRetries = 0
+        renderLoginStates(checking = true)
+        val probe = LOGIN_PROBES[index]
+        probeExpectedHost = hostOf(probe.url)
+        probeWebView.stopLoading()
+        probeWebView.loadUrl(probe.url)
+        probeHandler.postDelayed({
+            if (generation == probeGeneration && probeIndex == index && checkingLoginState) {
+                loginResults[index] = LoginSignals.Result(null)
+                startProbe(index + 1, generation)
+            }
+        }, probe.delayMs + PROBE_TIMEOUT_MS)
+    }
+
+    private fun evaluateProbe(index: Int, generation: Int) {
+        if (generation != probeGeneration || index != probeIndex) return
+        val probe = LOGIN_PROBES.getOrNull(index) ?: return
+        probeWebView.evaluateJavascript(probe.script) { raw ->
+            if (generation != probeGeneration || index != probeIndex) return@evaluateJavascript
+            val payload = jsString(raw)
+            if (payload.isBlank() && probeRetries < PROBE_RETRIES) {
+                // The reused WebView may evaluate before the document is ready
+                // (e.g. right after "clear all sessions"); retry the read once
+                // instead of reporting a false "Check failed".
+                probeRetries += 1
+                probeHandler.postDelayed({
+                    if (generation == probeGeneration && index == probeIndex) {
+                        evaluateProbe(index, generation)
+                    }
+                }, PROBE_RETRY_DELAY_MS)
+                return@evaluateJavascript
+            }
+            loginResults[index] = when (index) {
+                0 -> douyinResult(payload)
+                1 -> LoginSignals.bilibili(payload)
+                else -> LoginSignals.xiaohongshu(payload)
+            }
+            startProbe(index + 1, generation)
+        }
+    }
+
+    private fun hostOf(url: String): String = try {
+        android.net.Uri.parse(url).host.orEmpty()
+    } catch (t: Throwable) {
+        ""
+    }
+
+    private fun douyinResult(payload: String): LoginSignals.Result = try {
+        LoginSignals.douyin(org.json.JSONObject(payload).optString("title"))
+    } catch (t: Throwable) {
+        LoginSignals.Result(null)
+    }
+
+    private fun jsString(raw: String?): String {
+        if (raw.isNullOrBlank() || raw == "null") return ""
+        return try {
+            val value = org.json.JSONTokener(raw).nextValue()
+            value as? String ?: raw
+        } catch (t: Throwable) {
+            raw
+        }
+    }
+
+    private fun renderLoginStates(checking: Boolean) {
+        val lines = LOGIN_PROBES.mapIndexed { index, probe ->
+            val result = loginResults[index]
+            val status = when {
+                result == null -> getString(
+                    if (checking) R.string.login_state_checking else R.string.login_state_failed,
+                )
+
+                result.loggedIn == true && result.account.isNotBlank() ->
+                    getString(R.string.login_state_logged_in_as, result.account)
+
+                result.loggedIn == true -> getString(R.string.login_state_logged_in)
+                result.loggedIn == false -> getString(R.string.login_state_logged_out)
+                else -> getString(R.string.login_state_failed)
+            }
+            getString(R.string.login_state_line, getString(probe.labelRes), status)
+        }
+        sessionsStatus.text = lines.joinToString("\n")
+        sessionsStatus.visibility = View.VISIBLE
+    }
+
+    override fun onDestroy() {
+        probeGeneration += 1
+        probeHandler.removeCallbacksAndMessages(null)
+        if (::probeWebView.isInitialized) {
+            probeWebView.stopLoading()
+            (probeWebView.parent as? ViewGroup)?.removeView(probeWebView)
+            probeWebView.destroy()
+        }
+        super.onDestroy()
+    }
+
     private fun openLoginPage(url: String) {
         val host = try {
             android.net.Uri.parse(url).host ?: url
@@ -162,6 +334,7 @@ class TelegramSettingsActivity : Activity() {
             runOnUiThread {
                 clearSessions.isEnabled = true
                 showSessionsStatus(getString(R.string.login_cleared, count))
+                probeHandler.postDelayed({ refreshLoginStates() }, 1_500)
             }
         }
     }
@@ -218,3 +391,39 @@ class TelegramSettingsActivity : Activity() {
         private const val TEST_MESSAGE = "AnySave test message"
     }
 }
+
+private data class LoginProbe(
+    val labelRes: Int,
+    val url: String,
+    val delayMs: Long,
+    val script: String,
+)
+
+private const val PROBE_TIMEOUT_MS = 12_000L
+private const val PROBE_RETRIES = 2
+private const val PROBE_RETRY_DELAY_MS = 2_500L
+
+private val LOGIN_PROBES = listOf(
+    LoginProbe(
+        R.string.login_douyin,
+        "https://www.douyin.com/user/self",
+        5_000L,
+        "JSON.stringify({title: document.title})",
+    ),
+    LoginProbe(
+        R.string.login_bilibili,
+        "https://api.bilibili.com/x/web-interface/nav",
+        1_500L,
+        "document.body.innerText",
+    ),
+    LoginProbe(
+        R.string.login_xiaohongshu,
+        "https://www.xiaohongshu.com/explore",
+        5_000L,
+        "(function(){try{var s=window.__INITIAL_STATE__;var u=s&&s.user;" +
+            "function val(x){return x&&typeof x==='object'&&'value' in x?x.value:x;}" +
+            "var li=val(u&&u.loggedIn);var ui=val(u&&u.userInfo);" +
+            "return JSON.stringify({logged:!!li,nickname:(ui&&ui.nickname)||''});" +
+            "}catch(e){return JSON.stringify({logged:null});}})()",
+    ),
+)

@@ -12,7 +12,7 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 
 ## 状态
 
-**M10 AcFun（A站）图文**（可编译、可运行、已端到端验证）。完整链路：
+**M11 登录态检测**（可编译、可运行、已端到端验证）。完整链路：
 
 - 输入链接 → WebView 打开页面
 - 文档开始时注入响应监听（`app/src/main/res/raw/hook.js`），命中时连同响应体一起留下
@@ -34,9 +34,12 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 - **登录/会话（M9）**：设置页「登录」用**站点桌面版登录页**（App 内 WebView、
   手机扫码），登录态就是 WebView 的 Cookie，只存在应用私有目录；可一键清除
   所有站点登录态。抖音提取必须登录，B 站登录后可拿更高清晰度
+- **登录态检测（M11）**：设置页打开时用一个隐藏 WebView 依次探测三站登录状态，
+  显示 `抖音：已登录 · 昵称 / B站：未登录 / 小红书：未登录`；清除登录态后自动刷新。
+  探测只读页面状态，不读取、不打印 Cookie 值
 - **AcFun 图文（M10）**：A 站文章页 `/a/ac<id>` 是 SSR，`window.articleInfo`
   内含标题/作者/封面与 `parts[].content` HTML；从 HTML 里取原图（aixifan CDN）保存。
-  A 站视频是 HLS，当前下载管线不支持，暂不做
+  A 站视频是 HLS，当前下载管线不支持，暂不做（非当前重点）
 - **reader 热更新（M7）**：设置里填一个 reader pack URL，即可远程更新内置 reader 的
   页面提取脚本与响应匹配规则（带 sha256 校验、大小/白名单限制），站点改版不必发新版 APK；
   编译进 APK 的解析器与下载逻辑不变
@@ -67,6 +70,7 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 | YouTube 视频 | 6.5 s 解析出 1 项（“Me at the zoo”，19 s）；保存时下载 AVC 视频 + M4A 音频，合流为 746,914 B MP4（h264 320×240 + AAC 44.1 kHz，19.06 s），ffprobe/解码通过 |
 | 微博图文（3 图） | 3.2 s 解析出 3 项（作者杨伊琳10）；保存 3 张原图 229,606 / 256,742 / 221,566 B，MediaStore 尺寸正确、无 pending |
 | 微博视频（1 条） | 2.0 s 解析出 1 项；保存 1,896,528 B MP4（h264 720×1280 + AAC 44.1 kHz 立体声，13.72 s） |
+| 登录态检测 | 清空会话后三站均显示「未登录」；注入抖音真实会话后 `Douyin: Logged in · 背影`，B站/小红书保持未登录；再次清除后恢复未登录；探测不输出 Cookie 值 |
 | AcFun 图文（3 图） | 2.0 s 解析出 3 项（作者 AcFun活动）；保存 1,658,046 B PNG + 2,256,625 B PNG + 2,642,498 B JPEG（8000×4500 封面，容器嗅探把 .png 纠正为 .jpg），MediaStore 三行 pending 0 |
 | 登录/会话 | 设置页登录卡片打开桌面版页面：抖音标题「抖音-记录美好生活」、B 站「哔哩哔哩…」、小红书直接跳 `/login` 且有扫码入口；注入的会话 Cookie 重启应用后仍在（3/3），清除后 3 站 Cookie 行数归 0 |
 | 登录后回归 | 带 Cookie 的抖音提取 `Parsed 1 item(s) in 8179 ms`；B 站未登录仍解析 480P（`Parsed 1 item(s) in 5764 ms`）；无 Cookie 的抖音超时提示改为「…请在设置 → 登录中扫码登录」 |
@@ -126,6 +130,7 @@ app/src/main/
 │   ├── reader/WeiboParser.kt         微博 status → MediaItem（纯 JVM，可单测）
 │   ├── reader/AcfunReader.kt         A 站文章 reader（SSR articleInfo）
 │   ├── reader/AcfunParser.kt         文章 parts HTML → 原图（纯 JVM，可单测）
+│   ├── session/LoginSignals.kt       三站登录信号解析（纯 JVM，可单测）
 │   ├── session/SessionManager.kt     登录站点入口 + 清除全部会话
 │   ├── model/MediaItem.kt           MediaItem / PostMedia
 │   ├── model/MediaHit.kt            MediaHit / ExtractionSnapshot
@@ -144,7 +149,7 @@ app/src/main/
 │   ├── telegram/TelegramClient.kt   Bot API：getMe / sendMessage / 相册上传
 │   └── ui/                          预览面板、网格、缩略图加载、全屏查看
 └── res/raw/hook.js                  fetch / XHR 响应监听（页面上下文运行）
-app/src/test/                        解析 / 命名 / 容器识别 / Telegram / pack / YouTube 选流（68 条）
+app/src/test/                        解析 / 命名 / 容器识别 / Telegram / pack / YouTube 选流 / 登录信号（71 条）
 docs/
 ├── architecture.md                  设计说明
 └── verification.md                  关键假设的验证记录
@@ -157,7 +162,7 @@ docs/
 ```bash
 cp local.properties.example local.properties   # 改成你本机的 SDK 路径
 ./gradlew :app:assembleDebug
-./gradlew :app:testDebugUnitTest               # 68 条单测，含真实响应 fixture
+./gradlew :app:testDebugUnitTest               # 71 条单测，含真实响应 fixture
 ```
 
 APK 输出：`app/build/outputs/apk/debug/app-debug.apk`。
@@ -244,6 +249,7 @@ reader pack JSON，替换内置 reader 的**页面提取脚本**与**响应匹�
 - **M8** 微博 reader（SSR）+ 项目采用 GPL-3.0 ✅
 - **M9** 登录/会话管理（站内桌面登录页 + 清除登录态）✅
 - **M10** AcFun 图文 reader（SSR articleInfo）✅
+- **M11** 登录态检测（抖音/B站/小红书，设置页自动探测）✅
 
 ## 已知限制
 
@@ -260,8 +266,10 @@ reader pack JSON，替换内置 reader 的**页面提取脚本**与**响应匹�
 - 微博：公开单条链接可直接解析（自动 visitor cookie）；`/u/` 主页、话题页等暂不支持；
   视频 CDN 直链约 2 小时过期，需解析后尽快保存
 - A 站只支持文章（图文）页；视频页是 HLS 流，下载管线暂不支持
-- 登录态没有「已登录/未登录」状态展示（HttpOnly Cookie 无法通过 CookieManager 枚举），
-  以页面实际表现为准；清除登录态会清除所有站点（包括访客 Cookie）
+- 登录态检测依赖站点页面信号：抖音用 `user/self` 标题里的昵称、B 站用
+  `x/web-interface/nav`、小红书用 `__INITIAL_STATE__.user.loggedIn`；站点改版可能导致
+  检测失败（显示「检测失败」），不影响实际提取
+- 清除登录态会清除所有站点（包括访客 Cookie）
 - YouTube 不支持登录（专用提取器，最高 720p）；本机 googlevideo 网络异常不在应用控制范围
 - reader 热更新只能替换页面 JS 与响应规则，不能远程改解析器/下载逻辑；release 只允许
   https pack URL，pack 的信任边界就是它的 URL（无签名，但每个脚本必须带 sha256）
