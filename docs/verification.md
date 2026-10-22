@@ -253,3 +253,67 @@ M2 的保存只消费页面已经收到的 CDN 直链。先验证这些直链本
 - Bot API 的 429 限流退避、断网重试（当前不做，失败即计失败）
 - >10 张的大相册在真实 API 上的多组发送（分组逻辑有单测，live 只测到 3 张）
 - 频道 / 群组场景下的实际投递（mock 只校验 chat_id 透传）
+
+## 实验 L：小红书笔记页（M4）
+
+小红书笔记页同样是服务端渲染：页面上下文 hook 看不到 feed/detail XHR（只有
+`edith.xiaohongshu.com/.../zones` 之类埋点），因此只能从
+`window.__INITIAL_STATE__` 读数据。
+
+| 项目 | 结果 |
+|---|---|
+| 可用 URL 形态 | `/discovery/item/<id>?xsec_token=<urlencoded>&xsec_source=pc_feed&type=normal`，未登录也能打开笔记页 |
+| 裸链接 | `/explore/<id>`（无 token）被重定向到 `/website-login/captcha` 或 404 风控页 |
+| 状态结构（桌面页） | `note.noteDetailMap[<id>].note`（作者、标题、`imageList`、`video`） |
+| 状态结构（移动页） | `noteData.data.noteData`（同一批字段，`urlDefault` 可能为 null） |
+| 图片字段 | `imageList[].{fileId,width,height,url,infoList[H5_DTL,H5_PRV]}`；原图 = `https://ci.xiaohongshu.com/<fileId>`（无扩展名），显示版 webp 在 `xhscdn`（可能带水印） |
+| 视频字段 | `video.media.stream.h264[]`：`qualityType`（HD/SD/LD）、`videoBitrate`、`masterUrl`（单个 MP4，**含音轨**）、`duration`（毫秒）；封面 `video.image.firstFrameFileid/thumbnailFileid` |
+| 媒体直链可用性 | 原图 JPEG（Android `HttpURLConnection` 实测下载成功）、显示版 webp、视频 MP4 均可直取；状态里多为 `http://`，必须升级 https（release 禁止明文） |
+
+## 实验 M：小红书应用内端到端（APK 0.5.0 / debug）
+
+| 场景 | 证据 |
+|---|---|
+| 图文笔记（12 图） | 日志 `embedded payload found: 9414 chars` → `embedded parse ok in 2188ms, items=12` → `parsed aweme=6ad8558d… author=你好小舒🐈 images=12 videos=0`；面板 `12 items`、作者/标题/话题、12/12 缩略图加载 |
+| 保存 3 张原图 | `xiaohongshu_6ad8558d000000003303128c_0{1,2,3}.jpg`：1,775,889 / 1,763,912 / 2,073,854 B；MediaStore `Pictures/AnySave/`、`image/jpeg`、2730×4096、`is_pending=0`；拉回文件 PIL 校验通过 |
+| 视频笔记（1 条） | 面板 `1 item`、Videos(1)；保存 `xiaohongshu_6ad7206a00000000290087e3_video.mp4` = 11,285,434 B（与 payload 一致）；`ffprobe`：h264 720×1280 + AAC 48 kHz 立体声、时长 118.14 s（payload 118,143 ms）；MediaStore `Movies/AnySave/`、`video/mp4`、`is_pending=0` |
+| 失败/崩溃 | 无；保存后无 pending 残留 |
+
+## 实验 N：抖音回归（本次未完成，非应用缺陷）
+
+同一会话里重跑抖音笔记（M3 曾通过）时，WebView 收到的页面标题为空、正文是
+`Please wait...`、HTML 仅 2.6 KB、`window.__pace_f` 为 undefined —— 抖音对该模拟器
+会话下发了反爬挑战页。日志表现为 `no embedded payload for douyin` 重试后超时
+（25.5 s），不是 parser 或注入链路的回归：M4 对抖音路径的改动仅有两处（SSR 兜底
+改为重试、缩略图按 host 选 Referer），且 46 条单测（含抖音真实 payload 11 条）全部通过。
+建议在会话恢复/换 IP/换设备后补一次抖音端到端。
+
+## 实验 O：B 站可行性（结论：M4 只记录，不实现保存）
+
+| 项目 | 结果 |
+|---|---|
+| 页面数据 | `__INITIAL_STATE__`（101,554 B）与 `__playinfo__`（44,767 B）均内嵌 SSR；www 页面**没有** playurl XHR，hook 抓不到 |
+| 可播放流 | `__playinfo__.dash`：6 个视频轨（h264/hevc/av01，当前 cookie 只有 480P）+ 3 个音频轨；**没有 `durl` 单文件 MP4** |
+| 直链实测 | 视频 m4s 20,872,903 B（852×480，纯视频）；音频 m4s 5,408,198 B（AAC 48 kHz 立体声，纯音频）；合起来才能得到可播放文件 |
+| player 域 | `player.bilibili.com` 的 `/x/player/wbi/playurl` XHR 可见（200、51,031 B），但仍是 DASH 分离流 |
+| 结论 | 没有音视频合流就不存在「单文件可保存」路径；B 站保存推迟到后续里程碑，YouTube 需要专用提取库，同样不在 M4 范围 |
+
+## 实现结论（M4 追加）
+
+15. 多站点需要显式的 `MediaSite`：文件名前缀、CDN Referer 都由它决定，reader/parser
+    只负责产出 `PostMedia(site=…)`，下载/预览层不再硬编码站点。
+16. SSR-only reader 的 embedded 数据应作为主路径并重试（小红书 2.2 s 成功），
+    有网络路径的站点（抖音）仍先等网络响应、9 s 后兜底。
+17. 原图与显示图分离：`url` 放原图、`previewUrl` 放显示图、`fallbackUrl` 兜底；
+    落地后按首字节嗅探容器类型并修正 MediaStore 名称/MIME。本次小红书 3 张原图
+    全部保存成功，未触发兜底。
+18. 小红书的 `xsec_token` 是站点风控要求，应用只接受带 token 的分享链接，不做绕过。
+19. B 站/YouTube 的可行性边界已经量清：B 站缺单文件流，YouTube 缺页面级可观察数据；
+    两者都不适合「只观察、不重放」的当前架构。
+
+## 未验证项（M4 追加）
+
+- 抖音端到端回归（本次遇到反爬挑战页，待会话恢复后补测）
+- 小红书在真实登录态下的其它笔记形态、实况图视频、以及 token 过期后的错误提示
+- B 站音视频合流与保存（后续里程碑）
+- YouTube 专用提取库（后续里程碑）

@@ -9,7 +9,7 @@
 
 - 不做批量爬虫，不做多账号，不做公开分享
 - 不追求「什么都能下」，只做「先看、再选、再存」
-- 不在 M3 阶段处理 YouTube（需要专用提取库兜底）与其它站点
+- 不在 M4 阶段处理 B 站保存（DASH 需音视频合流）与 YouTube（需要专用提取库）
 
 ## 分层
 
@@ -58,7 +58,9 @@
 4. WebView 加载页面；站点自己的 JS 发请求、自己签名，hook 记录命中的响应体
 5. `PageExtractor` 每 600ms 轮询元数据（不传响应体，轮询保持廉价）
 6. 命中后一次性取回响应体，依次交给 `reader.parse(body, pageUrl)`，得到 `PostMedia`
-7. 若 9 秒仍无命中，执行 reader 的 `embeddedPayloadScript`，解析页面内嵌数据
+7. 若没有网络命中（或 reader 本就不声明响应模式，如小红书），执行
+   `embeddedPayloadScript` 读取页面内嵌数据；SSR-only reader 从 ~2 秒开始重试，
+   抖音这类有网络路径的 reader 从 9 秒开始兜底重试
 8. `MainActivity` 把 `PostMedia` 交给 `ui.PreviewPanel`：网格、筛选、多选、全屏查看
 9. 用户点「保存」→ 选中项按作品顺序打包成 `SaveJob`（JSON，`SaveJobCodec`）
 10. `SaveService` 以前台服务启动：3 个并发 worker，每个 worker 调 `MediaSaver`
@@ -89,6 +91,32 @@ interface SiteReader {
 解析器（`DouyinParser`）是纯 JVM 代码，不认识 Android API，因此可以用真实响应
 fixture 做单元测试。图片选择规则：跳过带 `dy-water` 水印流水线的 URL、优先 jpeg；
 视频优先 `play_addr`（网页播放端、无水印），`playwm` 一律跳过，`bit_rate` 档位兜底。
+
+## 多站点（M4）
+
+```
+SiteReader.forUrl(url)
+   ├── DouyinReader        origin www.douyin.com   网络响应（detail）+ SSR 兜底
+   └── XiaohongshuReader   origin www.xiaohongshu.com  SSR 内嵌数据（无网络模式）
+```
+
+- **MediaSite**（`model/MediaSite.kt`）是站点事实的唯一来源：文件名前缀
+  （`douyin_…` / `xiaohongshu_…`）与媒体 CDN 需要的 `Referer`
+  （`https://www.douyin.com/` / `https://www.xiaohongshu.com/`）。缩略图加载器按
+  媒体 URL 的 host 选 Referer，下载器按 `PostMedia.site` 选 Referer。
+- **小红书数据形状**有两代：桌面页的 `note.noteDetailMap[id].note` 与移动页的
+  `noteData.data.noteData`，parser 两者都接受；图片的 `urlDefault` 可能为 null，
+  需要回退 `url` / `infoList`（优先 `H5_DTL`/`WB_DFT`，其次 `H5_PRV`/`WB_PRV`）。
+- **原图 vs 显示图**：小红书图片原图是 `ci.xiaohongshu.com/<fileId>`（无扩展名、
+  全分辨率），显示版是 `xhscdn` 上的 webp（带水印、体积小）。`MediaItem.url` 放
+  原图、`previewUrl` 放显示图，并把显示图写进 `fallbackUrl`；下载失败时重试兜底，
+  落地后 `MediaSniffer` 按首字节修正扩展名与 MIME。
+- **分享链接约束**：小红书笔记页必须带 `xsec_token`（`/discovery/item/<id>?…`），
+  裸 `/explore` 会落到验证页；这是站点的风控要求，应用不做绕过。首页需要登录，
+  因此本应用只处理用户粘贴的单篇笔记链接。
+- **未纳入 M4**：B 站页面只内嵌 DASH 的分离视频/音频流（`__playinfo__.dash`），
+  没有可单文件保存的 `durl`，需要后续做音视频合流；YouTube 需要专用提取库，
+  均不在「WebView 观察」路线内。
 
 ## 保存管线（M2）
 
@@ -163,6 +191,9 @@ PreviewPanel 完成保存 ──▶ SaveService.complete()
 - 同名文件重复保存由 MediaStore 自动加 `(1)` 后缀；M2 不做去重与断点续传。
 - Telegram token 是唯一的外部凭据，只存在于应用私有配置；任何日志、任务载荷、
   文档都不得包含它。
+- 所有站点数据里的媒体 URL 统一转成 https（release 禁止明文流量）。
+- 站点 media URL 可能不带扩展名或走转码流水线：保存后按字节嗅探容器类型，
+  MediaStore 的名称与 MIME 必须与实际内容一致。
 - 上传/下载等网络调用一律在后台线程；主线程只做状态渲染与通知更新。
 
 ## 更新策略（M5）

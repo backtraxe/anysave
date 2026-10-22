@@ -9,8 +9,8 @@ import io.github.backtraxe.anysave.model.PostMedia
  * tested on the JVM.
  *
  * Layout on the device:
- *   Pictures/AnySave/douyin_<awemeId>_01.jpg
- *   Movies/AnySave/douyin_<awemeId>_video.mp4
+ *   Pictures/AnySave/<site>_<postId>_01.jpg
+ *   Movies/AnySave/<site>_<postId>_video.mp4
  */
 object MediaNaming {
     const val ALBUM = "AnySave"
@@ -22,19 +22,25 @@ object MediaNaming {
         val mimeType: String,
         val relativeDir: String,
         val isVideo: Boolean,
+        val extension: String,
     )
 
-    fun target(post: PostMedia, item: MediaItem): Target {
+    fun target(post: PostMedia, item: MediaItem): Target = targetFor(post, item, item.url)
+
+    /** Same as [target] but derives the extension from [url] (primary or fallback). */
+    fun targetFor(post: PostMedia, item: MediaItem, url: String): Target {
         val isVideo = item.kind == MediaKind.VIDEO
-        val extension = extensionOf(item.url, item.kind)
+        val extension = extensionOf(url, item.kind)
         val ordinal = if (item.index > 0) item.index else 1
         val suffix = if (isVideo) "video" else ordinal.toString().padStart(2, '0')
-        val awemeId = post.awemeId.ifBlank { "post" }
+        val postId = post.awemeId.ifBlank { "post" }
+        val siteId = post.site.id
         return Target(
-            displayName = "douyin_${awemeId}_$suffix.$extension",
+            displayName = "${siteId}_${postId}_$suffix.$extension",
             mimeType = mimeOf(extension, item.kind),
             relativeDir = if (isVideo) MOVIES_DIR else PICTURES_DIR,
             isVideo = isVideo,
+            extension = extension,
         )
     }
 

@@ -46,7 +46,7 @@ class PageExtractor(
     private var startedAt = 0L
     private var reader: SiteReader? = null
     private var finished = false
-    private var embeddedTried = false
+    private var lastEmbeddedAttemptAt = 0L
 
     init {
         webView.settings.apply {
@@ -72,7 +72,7 @@ class PageExtractor(
 
         generation += 1
         finished = false
-        embeddedTried = false
+        lastEmbeddedAttemptAt = 0L
         this.reader = reader
         startedAt = SystemClock.elapsedRealtime()
         // Drop anything captured on the previous page before navigating.
@@ -101,8 +101,7 @@ class PageExtractor(
                 snapshot.hits.isNotEmpty() -> captureBody(gen, snapshot)
                 elapsed >= TIMEOUT_MS -> finish(snapshot.copy(elapsedMs = elapsed))
                 currentReader?.embeddedPayloadScript != null &&
-                    !embeddedTried &&
-                    elapsed >= EMBEDDED_FALLBACK_AFTER_MS ->
+                    embeddedDue(currentReader, elapsed) ->
                     readEmbeddedPayload(gen, snapshot, currentReader)
 
                 else -> handler.postDelayed({ poll(gen) }, POLL_INTERVAL_MS)
@@ -134,7 +133,7 @@ class PageExtractor(
         snapshot: ExtractionSnapshot,
         reader: SiteReader,
     ) {
-        embeddedTried = true
+        lastEmbeddedAttemptAt = SystemClock.elapsedRealtime()
         val script = reader.embeddedPayloadScript ?: return
         webView.evaluateJavascript(script) { raw ->
             if (gen != generation) return@evaluateJavascript
@@ -220,6 +219,21 @@ class PageExtractor(
         }
     }
 
+    /**
+     * Embedded SSR data is the primary source for readers with no observed
+     * network response (xiaohongshu notes), and a fallback for the ones that do
+     * (douyin notes). Retry while the page is still hydrating instead of
+     * trying exactly once.
+     */
+    private fun embeddedDue(reader: SiteReader, elapsed: Long): Boolean {
+        val sinceLast = SystemClock.elapsedRealtime() - lastEmbeddedAttemptAt
+        return if (reader.responsePatterns.isEmpty()) {
+            elapsed >= EMBEDDED_PRIMARY_AFTER_MS && sinceLast >= EMBEDDED_RETRY_MS
+        } else {
+            elapsed >= EMBEDDED_FALLBACK_AFTER_MS && sinceLast >= EMBEDDED_FALLBACK_RETRY_MS
+        }
+    }
+
     private fun jsonString(raw: String?): String? {
         if (raw.isNullOrBlank() || raw == "null") return null
         return try {
@@ -250,6 +264,11 @@ class PageExtractor(
 
         /** Give the page's own request a head start before reading embedded data. */
         private const val EMBEDDED_FALLBACK_AFTER_MS = 9_000L
+
+        /** SSE-only readers: read embedded data as soon as the page is parsed. */
+        private const val EMBEDDED_PRIMARY_AFTER_MS = 2_000L
+        private const val EMBEDDED_RETRY_MS = 1_200L
+        private const val EMBEDDED_FALLBACK_RETRY_MS = 2_000L
 
         private val RESET_JS = """
             (function () {

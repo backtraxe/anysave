@@ -5,6 +5,7 @@ import android.graphics.BitmapFactory
 import android.os.Handler
 import android.os.Looper
 import android.util.LruCache
+import io.github.backtraxe.anysave.model.MediaSite
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.net.HttpURLConnection
@@ -37,7 +38,6 @@ object ThumbnailLoader {
     private const val WORKER_COUNT = 4
     private const val MAX_FAILED_ENTRIES = 200
 
-    private const val REFERER = "https://www.douyin.com/"
     private const val USER_AGENT =
         "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 " +
             "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
@@ -156,7 +156,7 @@ object ThumbnailLoader {
                 instanceFollowRedirects = true
                 requestMethod = "GET"
                 setRequestProperty("User-Agent", USER_AGENT)
-                setRequestProperty("Referer", REFERER)
+                setRequestProperty("Referer", MediaSite.refererForMediaUrl(url))
                 setRequestProperty("Accept", "image/*,*/*;q=0.8")
                 setRequestProperty("Accept-Language", "zh-CN,zh;q=0.9,en;q=0.8")
             }

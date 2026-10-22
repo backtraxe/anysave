@@ -12,13 +12,16 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 
 ## 状态
 
-**M3 Telegram 上传**（可编译、可运行、已端到端验证）。完整链路：
+**M4 小红书 reader**（可编译、可运行、已端到端验证）。完整链路：
 
 - 输入链接 → WebView 打开页面
 - 文档开始时注入响应监听（`app/src/main/res/raw/hook.js`），命中时连同响应体一起留下
 - 捕获页面自身发出的 `/aweme/v1/web/aweme/detail/` 响应
 - 抖音 reader 把 `aweme_detail` 解析成媒体清单：图文取 `images[]`（跳过水印版、优先
   jpeg），视频取 `play_addr`，并带作者、文案、尺寸与时长
+- **小红书 reader（M4）**：笔记页同样是 SSR，从 `window.__INITIAL_STATE__` 读取笔记
+  （两种数据结构都兼容）；图片优先原图（`ci.xiaohongshu.com/<fileId>`）、显示版 webp
+  作为预览与兜底，视频取 `h264` 最高画质 `masterUrl`（单文件含音轨）
 - 图文笔记页是服务端渲染（SSR），不发 detail 请求：改为读取页面已经内嵌的
   RSC 数据（`window.__pace_f`），**不构造任何请求、不算任何签名**
 - 预览面板：3 列缩略图网格、全部 / 图片 / 视频筛选、多选、长按全屏查看、返回网页
@@ -40,6 +43,12 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 | 上传 1 个视频 | 1 次 `sendVideo`，caption 含文案 + 作者 + 来源 |
 | 失败路径 | Bot API 返回 400 时上传计失败、相册文件保留、应用不崩溃、UI/通知显示失败数 |
 | 设置页 | 预填、保存、`getMe` + `sendMessage` 测试连接均通过 |
+| 小红书图文（12 图） | 4 s 内解析出 12 项，缩略图加载成功；保存 3 张**原图**（1,775,889 / 1,763,912 / 2,073,854 B，2730×4096），MediaStore 无 pending 残留 |
+| 小红书视频（1 条） | 保存 11,285,434 B 单文件 MP4：h264 720×1280 + AAC 48 kHz 立体声，时长 118.14 s，与 payload 一致 |
+
+![AnySave M4：小红书图文预览与多选](docs/images/m4-xhs.png)
+
+![AnySave M4：小红书视频预览](docs/images/m4-xhs-video.png)
 
 ![AnySave M3：保存并上传到 Telegram](docs/images/m3-upload.png)
 
@@ -74,12 +83,16 @@ app/src/main/
 │   ├── reader/SiteReader.kt         站点 reader 接口与注册表
 │   ├── reader/DouyinReader.kt       抖音 reader（响应模式 + 内嵌数据脚本）
 │   ├── reader/DouyinParser.kt       aweme_detail → MediaItem（纯 JVM，可单测）
+│   ├── reader/XiaohongshuReader.kt  小红书 reader（SSR 内嵌数据，无网络响应模式）
+│   ├── reader/XiaohongshuParser.kt  小红书 note → MediaItem（纯 JVM，可单测）
 │   ├── model/MediaItem.kt           MediaItem / PostMedia
 │   ├── model/MediaHit.kt            MediaHit / ExtractionSnapshot
+│   ├── model/MediaSite.kt           站点枚举：文件名前缀 + CDN Referer
 │   ├── model/SaveState.kt           保存 + 上传流程的 UI 状态
 │   ├── download/MediaNaming.kt      相册路径 / 文件名 / MIME（纯 JVM，可单测）
 │   ├── download/SaveJobCodec.kt     Activity ↔ Service 的任务编解码
-│   ├── download/MediaSaver.kt       CDN 下载 + MediaStore 写入
+│   ├── download/MediaSaver.kt       CDN 下载 + MediaStore 写入（含兜底 URL / 容器嗅探）
+│   ├── download/MediaSniffer.kt     从首字节识别 jpg/png/webp/gif/mp4/mov
 │   ├── download/SaveStateBus.kt     进程内保存/上传状态分发（主线程）
 │   ├── download/SaveService.kt      dataSync 前台服务、3 并发、保存后上传、通知
 │   ├── telegram/TelegramSettings.kt 本地配置（debug 可覆盖 API base 做 mock 测试）
@@ -88,7 +101,7 @@ app/src/main/
 │   ├── telegram/TelegramClient.kt   Bot API：getMe / sendMessage / 相册上传
 │   └── ui/                          预览面板、网格、缩略图加载、全屏查看
 └── res/raw/hook.js                  fetch / XHR 响应监听（页面上下文运行）
-app/src/test/                        解析 / 命名 / 任务编解码 / Telegram 协议（33 条）
+app/src/test/                        解析 / 命名 / 容器识别 / 任务编解码 / Telegram（46 条）
 docs/
 ├── architecture.md                  设计说明
 └── verification.md                  关键假设的验证记录
@@ -101,7 +114,7 @@ docs/
 ```bash
 cp local.properties.example local.properties   # 改成你本机的 SDK 路径
 ./gradlew :app:assembleDebug
-./gradlew :app:testDebugUnitTest               # 33 条单测，含真实响应 fixture
+./gradlew :app:testDebugUnitTest               # 46 条单测，含真实响应 fixture
 ```
 
 APK 输出：`app/build/outputs/apk/debug/app-debug.apk`。
@@ -143,12 +156,21 @@ APK 输出：`app/build/outputs/apk/debug/app-debug.apk`。
 - **M1** 抖音：解析 `aweme_detail` → 媒体清单 → 预览网格（缩略图、多选、筛选）✅
 - **M2** 下载：CDN 直取、3 并发、MediaStore 写相册、进度与通知 ✅
 - **M3** Telegram：Bot API 上传（相册分组、caption、可开关的自动上传）✅
-- **M4** 更多 reader：小红书 `__INITIAL_STATE__`、B 站；YouTube 走专用库兜底
-- **M5** reader 热更新（脚本包 + 哈希校验）
+- **M4** 更多 reader：小红书 `__INITIAL_STATE__` ✅（分享链接，预览 + 保存）
+  - B 站：`__playinfo__` 只有 DASH 分离音视频，保存需要合流；先记为待办
+  - YouTube：需要专用提取库兜底，待办
+- **M5** B 站 DASH 音视频合流 + YouTube 兜底
+- **M6** reader 热更新（脚本包 + 哈希校验）
 
 ## 已知限制
 
-- 目前只支持抖音；短链 `v.douyin.com` 尚未展开
+- 目前支持抖音与小红书；抖音短链 `v.douyin.com`、小红书短链 `xhslink.com` 尚未展开
+- 小红书必须粘贴**带 `xsec_token` 的分享链接**（`/discovery/item/<id>?xsec_token=…`）；
+  裸 `/explore/<id>` 会被小红书重定向到验证页。token 会过期，重新分享即可
+- 小红书未登录时 `/explore` 首页不可浏览（登录墙），本应用只处理单篇笔记链接
+- 小红书实况图（live photo）只取静态图；原图拉取失败时自动回退显示版 webp（文件名/MIME 会按实际字节修正）
+- B 站暂不支持：页面数据只有 DASH 分离的视频/音频流，单文件保存需要音视频合流
+- YouTube 暂不支持：需要专用提取库（不在 WebView 观察路线内）
 - 未登录时可能捕获不到数据——先在 WebView 里登录，再点提取
 - 图文笔记依赖页面内嵌数据：站点改版时需要更新 reader 的内嵌数据脚本
 - 实况图（live photo）的动态部分暂不预览、不保存，只取静态图

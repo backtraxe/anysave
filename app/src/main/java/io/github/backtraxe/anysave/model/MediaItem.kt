@@ -22,6 +22,11 @@ data class MediaItem(
     val durationMs: Long = 0L,
     /** 1-based ordinal inside the post, matching the future download order. */
     val index: Int = 0,
+    /**
+     * Optional second URL to try when [url] fails. Used by readers that prefer
+     * an original asset but can fall back to the site's display-transcoded copy.
+     */
+    val fallbackUrl: String = "",
 ) {
     val hasDimensions: Boolean get() = width > 0 && height > 0
 
@@ -40,6 +45,8 @@ data class PostMedia(
     /** The page URL the user extracted from, for attribution / future downloads. */
     val sourceUrl: String,
     val items: List<MediaItem>,
+    /** Which site reader produced this post (drives file naming + CDN referer). */
+    val site: MediaSite = MediaSite.DOUYIN,
 ) {
     val imageCount: Int get() = items.count { it.kind == MediaKind.IMAGE }
     val videoCount: Int get() = items.count { it.kind == MediaKind.VIDEO }

@@ -2,6 +2,7 @@ package io.github.backtraxe.anysave.download
 
 import io.github.backtraxe.anysave.model.MediaItem
 import io.github.backtraxe.anysave.model.MediaKind
+import io.github.backtraxe.anysave.model.MediaSite
 import io.github.backtraxe.anysave.model.PostMedia
 import org.json.JSONArray
 import org.json.JSONObject
@@ -26,6 +27,7 @@ object SaveJobCodec {
             .put("author", job.post.author)
             .put("desc", job.post.desc)
             .put("sourceUrl", job.post.sourceUrl)
+            .put("site", job.post.site.name)
         val items = JSONArray()
         job.items.forEach { item ->
             items.put(
@@ -34,6 +36,7 @@ object SaveJobCodec {
                     .put("kind", item.kind.name)
                     .put("url", item.url)
                     .put("previewUrl", item.previewUrl)
+                    .put("fallbackUrl", item.fallbackUrl)
                     .put("width", item.width)
                     .put("height", item.height)
                     .put("durationMs", item.durationMs)
@@ -66,6 +69,7 @@ object SaveJobCodec {
                     },
                     url = url,
                     previewUrl = obj.optString("previewUrl"),
+                    fallbackUrl = obj.optString("fallbackUrl"),
                     width = obj.optInt("width"),
                     height = obj.optInt("height"),
                     durationMs = obj.optLong("durationMs"),
@@ -80,6 +84,9 @@ object SaveJobCodec {
                     desc = postJson.optString("desc"),
                     sourceUrl = postJson.optString("sourceUrl"),
                     items = items,
+                    site = runCatching {
+                        MediaSite.valueOf(postJson.optString("site"))
+                    }.getOrDefault(MediaSite.DOUYIN),
                 ),
                 items = items,
             )

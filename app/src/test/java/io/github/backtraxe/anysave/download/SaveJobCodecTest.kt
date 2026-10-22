@@ -2,6 +2,7 @@ package io.github.backtraxe.anysave.download
 
 import io.github.backtraxe.anysave.model.MediaItem
 import io.github.backtraxe.anysave.model.MediaKind
+import io.github.backtraxe.anysave.model.MediaSite
 import io.github.backtraxe.anysave.model.PostMedia
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -19,6 +20,7 @@ class SaveJobCodecTest {
         assertEquals(POST.author, decoded.post.author)
         assertEquals(POST.desc, decoded.post.desc)
         assertEquals(POST.sourceUrl, decoded.post.sourceUrl)
+        assertEquals(MediaSite.XIAOHONGSHU, decoded.post.site)
         assertEquals(2, decoded.items.size)
 
         val image = decoded.items[0]
@@ -28,6 +30,7 @@ class SaveJobCodecTest {
         assertEquals(2160, image.width)
         assertEquals(3240, image.height)
         assertEquals(1, image.index)
+        assertEquals("https://sns-webpic-qc.xhscdn.com/display.webp", image.fallbackUrl)
 
         val video = decoded.items[1]
         assertEquals(MediaKind.VIDEO, video.kind)
@@ -64,6 +67,7 @@ class SaveJobCodecTest {
                 kind = MediaKind.IMAGE,
                 url = "https://p3-pc-sign.douyinpic.com/a.jpeg",
                 previewUrl = "https://p3-pc-sign.douyinpic.com/a.jpeg",
+                fallbackUrl = "https://sns-webpic-qc.xhscdn.com/display.webp",
                 width = 2160,
                 height = 3240,
                 index = 1,
@@ -86,6 +90,7 @@ class SaveJobCodecTest {
             desc = "Autumn in NewZealand",
             sourceUrl = "https://www.douyin.com/note/7665000000000000001",
             items = ITEMS,
+            site = MediaSite.XIAOHONGSHU,
         )
     }
 }

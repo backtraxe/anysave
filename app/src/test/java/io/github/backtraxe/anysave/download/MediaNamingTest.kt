@@ -2,6 +2,7 @@ package io.github.backtraxe.anysave.download
 
 import io.github.backtraxe.anysave.model.MediaItem
 import io.github.backtraxe.anysave.model.MediaKind
+import io.github.backtraxe.anysave.model.MediaSite
 import io.github.backtraxe.anysave.model.PostMedia
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -72,6 +73,25 @@ class MediaNamingTest {
     fun `blank aweme id still produces a usable name`() {
         val target = MediaNaming.target(POST.copy(awemeId = ""), image(1, "https://x/y.jpeg"))
         assertEquals("douyin_post_01.jpg", target.displayName)
+    }
+
+    @Test
+    fun `xiaohongshu names use the site prefix and fallback extension`() {
+        val post = POST.copy(site = MediaSite.XIAOHONGSHU, awemeId = "6ad8558d000000003303128c")
+        val item = image(1, "https://ci.xiaohongshu.com/notes_pre_post/abc")
+
+        val original = MediaNaming.target(post, item)
+        assertEquals("xiaohongshu_6ad8558d000000003303128c_01.jpg", original.displayName)
+        assertEquals("image/jpeg", original.mimeType)
+        assertEquals("Pictures/AnySave", original.relativeDir)
+
+        val display = MediaNaming.targetFor(
+            post,
+            item,
+            "https://sns-webpic-qc.xhscdn.com/2026/frame/abc!nd_dft.webp",
+        )
+        assertEquals("xiaohongshu_6ad8558d000000003303128c_01.webp", display.displayName)
+        assertEquals("image/webp", display.mimeType)
     }
 
     private fun image(index: Int, url: String) = MediaItem(
