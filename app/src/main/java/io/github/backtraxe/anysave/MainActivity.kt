@@ -30,6 +30,8 @@ import io.github.backtraxe.anysave.model.SaveState
 import io.github.backtraxe.anysave.reader.DirectExtractor
 import io.github.backtraxe.anysave.reader.DirectExtractors
 import io.github.backtraxe.anysave.reader.ReaderOverrides
+import io.github.backtraxe.anysave.settings.BilibiliQuality
+import io.github.backtraxe.anysave.settings.BilibiliQualityConfig
 import io.github.backtraxe.anysave.reader.SiteReader
 import io.github.backtraxe.anysave.ui.PreviewPanel
 
@@ -77,6 +79,7 @@ class MainActivity : Activity() {
         if (BuildConfig.DEBUG) {
             // Never expose the production WebView to DevTools debugging.
             ReaderOverrides.load(this)
+        BilibiliQualityConfig.maxHeight = BilibiliQuality.maxHeight(this)
 
         if (BuildConfig.DEBUG) {
             // Never expose the production WebView to DevTools debugging.
@@ -326,6 +329,12 @@ class MainActivity : Activity() {
             preview.hide()
             webView.onResume()
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Settings may have changed while the preview/settings screen was open.
+        BilibiliQualityConfig.maxHeight = BilibiliQuality.maxHeight(this)
     }
 
     override fun onDestroy() {

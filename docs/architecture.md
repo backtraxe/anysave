@@ -300,6 +300,22 @@ Settings 登录卡片 → cookieImportInput（粘贴文本）+ 三站导入按�
   Netscape 文件行（含 `#HttpOnly_` 前缀）。
 - 导入不会清除旧 Cookie，同名 Cookie 覆盖；「清除所有登录态」仍可整体重置。
 
+### B 站画质选择（M14）
+
+```
+Settings「B站画质」：Auto / 1080P / 720P / 480P
+   → SharedPreferences(anysave_quality)
+   → MainActivity onCreate/onResume: BilibiliQualityConfig.maxHeight = prefs value
+   → BilibiliReader.parse: BilibiliParser.parse(payload, url, maxHeight)
+        · 先按 codecid==7（AVC）过滤；再按 height<=cap 过滤（Auto=不过滤）
+        · 在候选里取 max(id, bandwidth)
+        · cap 内没有任何档位时回退到完整池（cap 只做上限，不做解锁）
+```
+
+- 画质来自页面 `__playinfo__`，只会包含当前会话（登录/权限）允许的档位；
+  该设置是「上限」而不是「解锁」。
+- 未登录同视频只有 480P/360P，调到 1080P 也不会有效果。
+
 ### 按站点退出（M13）
 
 ```

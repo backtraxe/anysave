@@ -65,4 +65,29 @@ class BilibiliParserTest {
         javaClass.classLoader!!.getResourceAsStream(path)!!
             .bufferedReader()
             .use { it.readText() }
+
+    @Test
+    fun `quality cap limits the chosen avc rendition`() {
+        val body = """
+            {"videoData":{"bvid":"BV1","title":"t","duration":10,"owner":{"name":"a"}},
+             "playinfo":{"timelength":10000,"dash":{"duration":10,
+               "video":[
+                 {"id":80,"codecid":7,"width":1920,"height":1080,"bandwidth":5000000,"baseUrl":"https://example.com/80.m4s"},
+                 {"id":64,"codecid":7,"width":1280,"height":720,"bandwidth":2500000,"baseUrl":"https://example.com/64.m4s"},
+                 {"id":32,"codecid":7,"width":852,"height":480,"bandwidth":1000000,"baseUrl":"https://example.com/32.m4s"}
+               ],
+               "audio":[{"id":30280,"baseUrl":"https://example.com/a.m4s"}]}}}
+        """.trimIndent()
+
+        fun widthFor(cap: Int) =
+            BilibiliParser.parse(body, "https://www.bilibili.com/video/BV1", cap)!!.items.single().width
+
+        assertEquals(1920, widthFor(0))
+        assertEquals(1920, widthFor(1080))
+        assertEquals(1280, widthFor(720))
+        assertEquals(852, widthFor(480))
+        // No rendition within the cap: fall back to the highest available.
+        assertEquals(1920, widthFor(120))
+    }
+
 }

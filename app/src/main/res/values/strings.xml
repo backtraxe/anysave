@@ -13,6 +13,13 @@
     <string name="status_timeout">No matching response captured (timeout). If this page needs a login, use Settings → Login first.</string>
     <string name="status_direct_failed">Could not extract this page (dedicated extractor failed).</string>
     <string name="status_login_opened">Login page opened. Scan the QR code with your phone, then go back and paste a post link.</string>
+    <string name="quality_title">Bilibili quality</string>
+    <string name="quality_hint">Cap the AVC rendition picked from the page DASH manifest. Auto keeps the highest the current session can play.</string>
+    <string name="quality_auto">Auto</string>
+    <string name="quality_1080p">1080P</string>
+    <string name="quality_720p">720P</string>
+    <string name="quality_480p">480P</string>
+    <string name="quality_current">Current: %1$s</string>
     <string name="session_clear_site_done">Cleared %1$s session.</string>
     <string name="session_clear_site_failed">Could not clear %1$s session.</string>
     <string name="cookie_import_empty">Paste cookies first.</string>

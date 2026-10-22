@@ -12,6 +12,13 @@
     <string name="status_timeout">未捕获到目标响应（超时）。若该页面需要登录，请先在设置 → 登录中扫码登录。</string>
     <string name="status_direct_failed">页面提取失败（专用提取器未拿到数据）。</string>
     <string name="status_login_opened">已打开登录页。用手机扫码登录后返回，再粘贴作品链接提取。</string>
+    <string name="quality_title">B站画质</string>
+    <string name="quality_hint">限制从页面 DASH 清单中选择的 AVC 档位。自动 = 当前会话可用的最高画质。</string>
+    <string name="quality_auto">自动</string>
+    <string name="quality_1080p">1080P</string>
+    <string name="quality_720p">720P</string>
+    <string name="quality_480p">480P</string>
+    <string name="quality_current">当前：%1$s</string>
     <string name="session_clear_site_done">已清除%1$s登录态。</string>
     <string name="session_clear_site_failed">清除%1$s登录态失败。</string>
     <string name="cookie_import_empty">请先粘贴 Cookie。</string>

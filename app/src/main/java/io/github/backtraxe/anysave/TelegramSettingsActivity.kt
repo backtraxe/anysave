@@ -16,6 +16,7 @@ import android.widget.Toast
 import io.github.backtraxe.anysave.model.DESKTOP_CHROME_UA
 import io.github.backtraxe.anysave.reader.ReaderPackRepository
 import io.github.backtraxe.anysave.session.LoginSignals
+import io.github.backtraxe.anysave.settings.BilibiliQuality
 import io.github.backtraxe.anysave.session.SessionManager
 import io.github.backtraxe.anysave.telegram.TelegramClient
 import io.github.backtraxe.anysave.telegram.TelegramConfig
@@ -54,6 +55,11 @@ class TelegramSettingsActivity : Activity() {
     private lateinit var clearDouyinSession: View
     private lateinit var clearBilibiliSession: View
     private lateinit var clearXiaohongshuSession: View
+    private lateinit var qualityAuto: TextView
+    private lateinit var quality1080: TextView
+    private lateinit var quality720: TextView
+    private lateinit var quality480: TextView
+    private lateinit var qualityStatus: TextView
 
     private lateinit var probeWebView: WebView
     private val probeHandler = Handler(Looper.getMainLooper())
@@ -92,6 +98,11 @@ class TelegramSettingsActivity : Activity() {
         clearDouyinSession = findViewById(R.id.clearDouyinSession)
         clearBilibiliSession = findViewById(R.id.clearBilibiliSession)
         clearXiaohongshuSession = findViewById(R.id.clearXiaohongshuSession)
+        qualityAuto = findViewById(R.id.qualityAuto)
+        quality1080 = findViewById(R.id.quality1080)
+        quality720 = findViewById(R.id.quality720)
+        quality480 = findViewById(R.id.quality480)
+        qualityStatus = findViewById(R.id.qualityStatus)
         setupProbeWebView()
         probeHandler.post { refreshLoginStates() }
 
@@ -116,6 +127,11 @@ class TelegramSettingsActivity : Activity() {
         clearDouyinSession.setOnClickListener { clearSiteSession("douyin", getString(R.string.login_douyin)) }
         clearBilibiliSession.setOnClickListener { clearSiteSession("bilibili", getString(R.string.login_bilibili)) }
         clearXiaohongshuSession.setOnClickListener { clearSiteSession("xiaohongshu", getString(R.string.login_xiaohongshu)) }
+        qualityAuto.setOnClickListener { setQuality(BilibiliQuality.AUTO) }
+        quality1080.setOnClickListener { setQuality(BilibiliQuality.P1080) }
+        quality720.setOnClickListener { setQuality(BilibiliQuality.P720) }
+        quality480.setOnClickListener { setQuality(BilibiliQuality.P480) }
+        updateQualityUi()
     }
 
     private fun currentConfig(): TelegramConfig = TelegramConfig(
@@ -330,6 +346,39 @@ class TelegramSettingsActivity : Activity() {
             probeWebView.destroy()
         }
         super.onDestroy()
+    }
+
+    private fun setQuality(height: Int) {
+        BilibiliQuality.setMaxHeight(this, height)
+        updateQualityUi()
+    }
+
+    private fun updateQualityUi() {
+        val current = BilibiliQuality.maxHeight(this)
+        val entries = listOf(
+            BilibiliQuality.AUTO to qualityAuto,
+            BilibiliQuality.P1080 to quality1080,
+            BilibiliQuality.P720 to quality720,
+            BilibiliQuality.P480 to quality480,
+        )
+        for ((height, view) in entries) {
+            val selected = height == current
+            view.setBackgroundResource(
+                if (selected) R.drawable.bg_settings_secondary_button else R.drawable.bg_text_button,
+            )
+            view.setTextColor(
+                getColor(if (selected) R.color.brand else R.color.preview_text_secondary),
+            )
+        }
+        qualityStatus.text = getString(R.string.quality_current, qualityLabel(current))
+        qualityStatus.visibility = View.VISIBLE
+    }
+
+    private fun qualityLabel(height: Int): String = when (height) {
+        BilibiliQuality.P1080 -> getString(R.string.quality_1080p)
+        BilibiliQuality.P720 -> getString(R.string.quality_720p)
+        BilibiliQuality.P480 -> getString(R.string.quality_480p)
+        else -> getString(R.string.quality_auto)
     }
 
     private fun openLoginPage(url: String) {

@@ -22,7 +22,7 @@ import org.json.JSONObject
 object BilibiliParser {
     private const val AVC_CODEC_ID = 7
 
-    fun parse(body: String, sourceUrl: String): PostMedia? {
+    fun parse(body: String, sourceUrl: String, maxHeight: Int = 0): PostMedia? {
         if (body.isBlank()) return null
         val root = try {
             JSONObject(body)
@@ -39,7 +39,7 @@ object BilibiliParser {
 
         val videoRenditions = dash.optJSONArray("video") ?: return null
         val audioRenditions = dash.optJSONArray("audio") ?: return null
-        val video = pickVideo(videoRenditions) ?: return null
+        val video = pickVideo(videoRenditions, maxHeight) ?: return null
         val audio = pickAudio(audioRenditions) ?: return null
         val videoUrl = renditionUrl(video) ?: return null
         val audioUrl = renditionUrl(audio) ?: return null
@@ -71,12 +71,23 @@ object BilibiliParser {
         )
     }
 
-    private fun pickVideo(renditions: JSONArray): JSONObject? {
+    private fun pickVideo(renditions: JSONArray, maxHeight: Int): JSONObject? {
         val all = (0 until renditions.length()).mapNotNull { renditions.optJSONObject(it) }
         if (all.isEmpty()) return null
         val avc = all.filter { it.optInt("codecid") == AVC_CODEC_ID }
         val pool = avc.ifEmpty { all }
-        return pool.maxWithOrNull(
+        // 0 = Auto. Otherwise prefer renditions at/below the cap; fall back to
+        // the full pool when the page does not offer anything within the cap.
+        val capped = if (maxHeight > 0) {
+            pool.filter { rendition ->
+                val height = rendition.optInt("height")
+                height <= 0 || height <= maxHeight
+            }
+        } else {
+            pool
+        }
+        val finalPool = capped.ifEmpty { pool }
+        return finalPool.maxWithOrNull(
             compareBy({ it.optInt("id") }, { it.optLong("bandwidth") }),
         )
     }

@@ -1,6 +1,7 @@
 package io.github.backtraxe.anysave.reader
 
 import io.github.backtraxe.anysave.model.DESKTOP_CHROME_UA
+import io.github.backtraxe.anysave.settings.BilibiliQualityConfig
 import io.github.backtraxe.anysave.model.PostMedia
 
 /**
@@ -26,7 +27,7 @@ object BilibiliReader : SiteReader {
         url.contains("www.bilibili.com/video/") || url.contains("bilibili.com/video/BV")
 
     override fun parse(body: String, sourceUrl: String): PostMedia? =
-        BilibiliParser.parse(body, sourceUrl)
+        BilibiliParser.parse(body, sourceUrl, BilibiliQualityConfig.maxHeight)
 
     override val embeddedPayloadScript: String = """
         (function () {
