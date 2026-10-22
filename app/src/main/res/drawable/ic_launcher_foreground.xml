@@ -1,23 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Minimal download mark: one arrow + one tray line. Cream on brand teal. -->
+<!-- Minimal save mark: a cream bookmark ribbon. No arrow, no play glyph. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-
-    <!-- Shaft + head share the same stroke weight and round caps. -->
     <path
-        android:pathData="M54,30 V56 M40,44 L54,58 L68,44"
-        android:strokeColor="#FFF6E9"
-        android:strokeLineCap="round"
-        android:strokeLineJoin="round"
-        android:strokeWidth="10" />
-
-    <!-- Tray: a single rounded line instead of a box/glyph. -->
-    <path
-        android:pathData="M36,74 H72"
-        android:strokeColor="#FFF6E9"
-        android:strokeLineCap="round"
-        android:strokeWidth="10" />
+        android:fillColor="#FFF6E9"
+        android:pathData="M38,36 A8,8 0 0 1 46,28 H62 A8,8 0 0 1 70,36 V78 L54,64 L38,78 Z" />
 </vector>

@@ -15,7 +15,7 @@
 | 语言 | 简体中文 / English |
 | 价格 | 免费、无广告、无内购 |
 | 许可证 | GPL-3.0（含 NewPipeExtractor，GPL-3.0） |
-| 应用图标 | `docs/images/app-icon.png`（扁平青绿 + 奶油下载箭头 + 托盘线；自适应 + monochrome） |
+| 应用图标 | `docs/images/app-icon.png`（扁平青绿 + 奶油书签；自适应 + monochrome） |
 | 源码 | https://github.com/backtraxe/anysave |
 | 下载 | https://github.com/backtraxe/anysave/releases |
 
@@ -82,11 +82,11 @@ Telegram 上传是可选功能，由用户配置自己的 Bot Token 与 Chat ID�
 
 - 自适应图标（API 26+）：`res/mipmap-anydpi-v26/ic_launcher.xml`（+ `ic_launcher_round.xml`）
 - 背景：`res/drawable/ic_launcher_background.xml`（扁平青绿 `#0F766E`）
-- 前景：`res/drawable/ic_launcher_foreground.xml`（奶油 `#FFF6E9` 下载箭头 + 一条圆头托盘线，
-  全部落在 66dp 安全区；无渐变、无额外装饰）
+- 前景：`res/drawable/ic_launcher_foreground.xml`（一枚奶油 `#FFF6E9` 书签，
+  全部落在 66dp 安全区；无箭头、无播放三角、无渐变/装饰）
 - 主题图标：`res/drawable/ic_launcher_monochrome.xml`
 - 预览：`docs/images/app-icon.png`
-- 语义：向下箭头 = 下载，托盘线 = 收下/保存（极简、避免被误读为播放器）
+- 语义：书签 = 保存/收藏，一眼可辨且不会被误读为播放器
 
 ## 色彩系统（与图标一致）
 
@@ -124,6 +124,7 @@ Telegram 上传是可选功能，由用户配置自己的 Bot Token 与 Chat ID�
 
 | 版本 | 内容 |
 |---|---|
+| 0.26.0 | 极简书签图标（无箭头，扁平青绿） |
 | 0.25.0 | 极简下载图标（箭头 + 托盘线，扁平青绿） |
 | 0.24.0 | 图标改为下载箭头 + 收纳袋（青绿配色不变） |
 | 0.23.0 | 青绿品牌配色；图标与 App 内颜色统一（青绿/珊瑚/奶油） |
