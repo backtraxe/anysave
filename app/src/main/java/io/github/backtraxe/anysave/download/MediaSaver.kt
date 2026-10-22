@@ -9,35 +9,39 @@ import android.provider.MediaStore
 import android.util.Log
 import android.webkit.CookieManager
 import io.github.backtraxe.anysave.model.MediaItem
+import io.github.backtraxe.anysave.model.MediaKind
 import io.github.backtraxe.anysave.model.PostMedia
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import java.io.File
+import java.io.FileOutputStream
 import java.io.InputStream
+import java.io.OutputStream
 import java.net.HttpURLConnection
 import java.net.URL
 
 /**
  * Downloads one media URL into the system gallery.
  *
- * The URL is the one the page itself received (CDN signed, no-watermark variant),
- * so this is a plain GET with the headers the page's CDN expects — no API replay,
- * no signature computation. Session cookies, when present for that host, are read
- * from the WebView's own [CookieManager] in-process (never exported to disk).
+ * The URL is the one the page itself received (CDN signed), so this is a plain
+ * GET with the headers the page's CDN expects — no API replay, no signature
+ * computation. Session cookies, when present for that host, are read from the
+ * WebView's own [CookieManager] in-process (never exported to disk).
  *
- * A reader may provide a [MediaItem.fallbackUrl] (e.g. the site's display copy).
- * If the primary URL fails, the fallback is tried before the item is marked failed.
+ * Three save shapes:
+ * - image / single-file video: stream straight into MediaStore
+ * - bilibili DASH ([MediaItem.audioUrl] set): download the video and audio
+ *   tracks to cache, mux them with [DashMuxer], then copy one MP4 into MediaStore
+ * - primary URL failure falls back to [MediaItem.fallbackUrl]
+ *
  * After the bytes arrive the container is sniffed, so the MediaStore name + MIME
  * type are honest even when the URL lied about the extension.
- *
- * Placement:
- * - images -> `Pictures/AnySave`, video -> `Movies/AnySave`
- * - API 29+: MediaStore with RELATIVE_PATH + IS_PENDING
- * - API 26-28: MediaStore with an explicit DATA path (needs WRITE_EXTERNAL_STORAGE)
  */
 class MediaSaver(context: Context) {
 
-    private val resolver = context.applicationContext.contentResolver
+    private val appContext = context.applicationContext
+    private val resolver = appContext.contentResolver
+    private val cacheRoot = File(appContext.cacheDir, "anysave-save")
 
     /** Result of one successful save. */
     data class SavedFile(val uri: Uri, val bytes: Long)
@@ -51,7 +55,11 @@ class MediaSaver(context: Context) {
 
         for ((attempt, mediaUrl) in candidates.withIndex()) {
             val target = MediaNaming.targetFor(post, item, mediaUrl)
-            val result = saveOne(post, item, target, mediaUrl)
+            val result = if (item.kind == MediaKind.VIDEO && item.audioUrl.isNotBlank()) {
+                saveMuxed(post, item, target, mediaUrl)
+            } else {
+                saveSingle(post, item, target, mediaUrl)
+            }
             if (result != null) return result
             if (attempt < candidates.lastIndex) {
                 Log.w(TAG, "primary media url failed, trying fallback for ${target.displayName}")
@@ -60,12 +68,88 @@ class MediaSaver(context: Context) {
         return null
     }
 
-    private fun saveOne(
+    // ------------------------------------------------------------- single asset
+
+    private fun saveSingle(
         post: PostMedia,
         item: MediaItem,
         target: MediaNaming.Target,
         mediaUrl: String,
     ): SavedFile? {
+        val uri = insertPending(target) ?: return null
+        return try {
+            val output = resolver.openOutputStream(uri)
+                ?: throw IllegalStateException("no output stream for $uri")
+            val downloaded = output.use {
+                downloadToStream(
+                    url = mediaUrl,
+                    referer = post.site.referer,
+                    userAgent = post.site.downloadUserAgent ?: DEFAULT_USER_AGENT,
+                    destination = it,
+                )
+            }
+            if (downloaded.bytes <= 0L) throw IllegalStateException("empty response body")
+            val finalTarget = correctContainer(uri, target, item, downloaded.header)
+            publish(uri)
+            Log.i(TAG, "saved ${finalTarget.displayName} (${downloaded.bytes}B) -> $uri")
+            SavedFile(uri = uri, bytes = downloaded.bytes)
+        } catch (t: Throwable) {
+            Log.w(TAG, "download failed for ${target.displayName}: ${t.message}")
+            deleteQuietly(uri)
+            null
+        }
+    }
+
+    // --------------------------------------------------------------- dash mux
+
+    private fun saveMuxed(
+        post: PostMedia,
+        item: MediaItem,
+        target: MediaNaming.Target,
+        videoUrl: String,
+    ): SavedFile? {
+        val uri = insertPending(target) ?: return null
+        val work = File(cacheRoot, "mux-${System.nanoTime()}").apply { mkdirs() }
+        val videoFile = File(work, "video.m4s")
+        val audioFile = File(work, "audio.m4s")
+        val outputFile = File(work, "output.mp4")
+        return try {
+            val downloadUa = post.site.downloadUserAgent ?: DEFAULT_USER_AGENT
+            val videoBytes = downloadToFile(videoUrl, videoFile, post.site.referer, downloadUa)
+            val audioBytes = downloadToFile(item.audioUrl, audioFile, post.site.referer, downloadUa)
+            if (videoBytes <= 0L || audioBytes <= 0L) {
+                throw IllegalStateException("empty dash track (v=$videoBytes a=$audioBytes)")
+            }
+            if (!DashMuxer.mux(videoFile, audioFile, outputFile)) {
+                throw IllegalStateException("dash mux failed")
+            }
+            val bytes = outputFile.length()
+            if (bytes <= 0L) throw IllegalStateException("empty muxed output")
+            val out = resolver.openOutputStream(uri)
+                ?: throw IllegalStateException("no output stream for $uri")
+            out.use { sink ->
+                outputFile.inputStream().use { source -> source.copyTo(sink, BUFFER_SIZE) }
+            }
+            val finalTarget = correctContainer(uri, target, item, readHeader(outputFile))
+            publish(uri)
+            Log.i(
+                TAG,
+                "muxed ${finalTarget.displayName} (v=${videoBytes}B a=${audioBytes}B " +
+                    "-> ${bytes}B) -> $uri",
+            )
+            SavedFile(uri = uri, bytes = bytes)
+        } catch (t: Throwable) {
+            Log.w(TAG, "muxed save failed for ${target.displayName}: ${t.message}")
+            deleteQuietly(uri)
+            null
+        } finally {
+            work.deleteRecursively()
+        }
+    }
+
+    // ------------------------------------------------------------- mediasstore
+
+    private fun insertPending(target: MediaNaming.Target): Uri? {
         val collection = if (target.isVideo) {
             MediaStore.Video.Media.EXTERNAL_CONTENT_URI
         } else {
@@ -89,41 +173,32 @@ class MediaSaver(context: Context) {
                 put(MediaStore.MediaColumns.DATA, File(dir, target.displayName).absolutePath)
             }
         }
-
-        val uri = try {
+        return try {
             resolver.insert(collection, values)
         } catch (t: Throwable) {
             Log.w(TAG, "media insert failed for ${target.displayName}", t)
             null
-        } ?: return null
-
-        return try {
-            val downloaded = downloadInto(mediaUrl, uri, post.site.referer)
-            if (downloaded.bytes <= 0L) throw IllegalStateException("empty response body")
-            val finalTarget = correctContainer(uri, target, item, downloaded.header)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                val published = ContentValues().apply {
-                    put(MediaStore.MediaColumns.IS_PENDING, 0)
-                }
-                resolver.update(uri, published, null, null)
-            }
-            Log.i(TAG, "saved ${finalTarget.displayName} (${downloaded.bytes}B) -> $uri")
-            SavedFile(uri = uri, bytes = downloaded.bytes)
-        } catch (t: Throwable) {
-            Log.w(TAG, "download failed for ${target.displayName}: ${t.message}")
-            try {
-                resolver.delete(uri, null, null)
-            } catch (cleanup: Throwable) {
-                Log.w(TAG, "failed to clean up pending row", cleanup)
-            }
-            null
         }
     }
 
-    /**
-     * Sniffs the actual bytes and fixes the MediaStore name/MIME if the URL
-     * extension was missing or wrong (common for xiaohongshu originals).
-     */
+    private fun publish(uri: Uri) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            val published = ContentValues().apply {
+                put(MediaStore.MediaColumns.IS_PENDING, 0)
+            }
+            resolver.update(uri, published, null, null)
+        }
+    }
+
+    private fun deleteQuietly(uri: Uri) {
+        try {
+            resolver.delete(uri, null, null)
+        } catch (cleanup: Throwable) {
+            Log.w(TAG, "failed to clean up pending row", cleanup)
+        }
+    }
+
+    /** Sniffs the actual bytes and fixes the name/MIME if the extension was wrong. */
     private fun correctContainer(
         uri: Uri,
         target: MediaNaming.Target,
@@ -148,9 +223,25 @@ class MediaSaver(context: Context) {
         return fixed
     }
 
+    // ----------------------------------------------------------------- network
+
     private data class DownloadResult(val bytes: Long, val header: ByteArray)
 
-    private fun downloadInto(url: String, uri: Uri, referer: String): DownloadResult {
+    private fun downloadToFile(
+        url: String,
+        file: File,
+        referer: String,
+        userAgent: String,
+    ): Long = FileOutputStream(file).use { out ->
+        downloadToStream(url, referer, userAgent, out).bytes
+    }
+
+    private fun downloadToStream(
+        url: String,
+        referer: String,
+        userAgent: String,
+        destination: OutputStream,
+    ): DownloadResult {
         var connection: HttpURLConnection? = null
         try {
             connection = (URL(url).openConnection() as HttpURLConnection).apply {
@@ -158,7 +249,7 @@ class MediaSaver(context: Context) {
                 readTimeout = READ_TIMEOUT_MS
                 instanceFollowRedirects = true
                 requestMethod = "GET"
-                setRequestProperty("User-Agent", USER_AGENT)
+                setRequestProperty("User-Agent", userAgent)
                 if (referer.isNotBlank()) setRequestProperty("Referer", referer)
                 setRequestProperty("Accept", "*/*")
                 cookieFor(url)?.let { setRequestProperty("Cookie", it) }
@@ -171,9 +262,7 @@ class MediaSaver(context: Context) {
 
             connection.inputStream.use { rawInput: InputStream ->
                 val input = BufferedInputStream(rawInput, BUFFER_SIZE)
-                val rawOutput = resolver.openOutputStream(uri)
-                    ?: throw IllegalStateException("no output stream for $uri")
-                val output = BufferedOutputStream(rawOutput, BUFFER_SIZE)
+                val output = BufferedOutputStream(destination, BUFFER_SIZE)
                 try {
                     val buffer = ByteArray(BUFFER_SIZE)
                     var headerFilled = 0
@@ -203,6 +292,16 @@ class MediaSaver(context: Context) {
         }
     }
 
+    private fun readHeader(file: File): ByteArray {
+        val header = ByteArray(HEADER_SIZE)
+        return try {
+            file.inputStream().use { it.read(header) }
+            header
+        } catch (t: Throwable) {
+            header
+        }
+    }
+
     /** In-process WebView session cookies for the CDN host; no cookie files. */
     private fun cookieFor(url: String): String? = try {
         CookieManager.getInstance().getCookie(url)?.takeIf { it.isNotBlank() }
@@ -217,7 +316,7 @@ class MediaSaver(context: Context) {
         private const val READ_TIMEOUT_MS = 120_000
         private const val BUFFER_SIZE = 64 * 1024
         private const val HEADER_SIZE = 16
-        private const val USER_AGENT =
+        private const val DEFAULT_USER_AGENT =
             "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 " +
                 "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
     }

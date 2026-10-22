@@ -9,7 +9,7 @@
 
 - 不做批量爬虫，不做多账号，不做公开分享
 - 不追求「什么都能下」，只做「先看、再选、再存」
-- 不在 M4 阶段处理 B 站保存（DASH 需音视频合流）与 YouTube（需要专用提取库）
+- 不在 M5 阶段处理 YouTube（需要专用提取库，不在 WebView 观察路线内）
 
 ## 分层
 
@@ -28,6 +28,7 @@
 │                  进度通知、SaveStateBus       │
 ├─────────────────────────────────────────────┤
 │ MediaSaver       直连 CDN 取字节 → MediaStore │
+│ DashMuxer        DASH 视频+音频 → 单 MP4      │
 ├─────────────────────────────────────────────┤
 │ TelegramClient   Bot API：相册 / 单条 / caption│
 ├─────────────────────────────────────────────┤
@@ -64,7 +65,9 @@
 8. `MainActivity` 把 `PostMedia` 交给 `ui.PreviewPanel`：网格、筛选、多选、全屏查看
 9. 用户点「保存」→ 选中项按作品顺序打包成 `SaveJob`（JSON，`SaveJobCodec`）
 10. `SaveService` 以前台服务启动：3 个并发 worker，每个 worker 调 `MediaSaver`
-11. `MediaSaver` 直接 GET 页面已经拿到的 CDN 地址，写入 MediaStore 对应集合；
+11. `MediaSaver` 直接 GET 页面已经拿到的 CDN 地址；B 站 DASH 会先下载两条流、
+    由 `DashMuxer` 用 MediaExtractor/MediaMuxer 合流成一个 MP4，再写入 MediaStore；
+    其余站点直接写入 MediaStore 对应集合；
     `SaveStateBus` 把 `Running/Uploading/Finished` 推给面板，`NotificationManager` 同步进度
 12. 若配置了 Telegram 且打开「保存后自动上传」：`SaveService` 在后台线程把刚保存的
     文件按字节上传，先 `sendMediaGroup`（每组 ≤10）再退回单条 `sendPhoto/sendVideo`，
@@ -114,9 +117,33 @@ SiteReader.forUrl(url)
 - **分享链接约束**：小红书笔记页必须带 `xsec_token`（`/discovery/item/<id>?…`），
   裸 `/explore` 会落到验证页；这是站点的风控要求，应用不做绕过。首页需要登录，
   因此本应用只处理用户粘贴的单篇笔记链接。
-- **未纳入 M4**：B 站页面只内嵌 DASH 的分离视频/音频流（`__playinfo__.dash`），
-  没有可单文件保存的 `durl`，需要后续做音视频合流；YouTube 需要专用提取库，
-  均不在「WebView 观察」路线内。
+- **B 站**（M5）在 SSR 数据之外还要求 DASH 合流与站点 UA 覆盖，见下一节；
+  YouTube 需要专用提取库，不在「WebView 观察」路线内。
+
+## B 站与 DASH 合流（M5）
+
+```
+BilibiliReader（SSR: __INITIAL_STATE__.videoData + __playinfo__）
+        │ 1 个 VIDEO MediaItem：url=视频 m4s, audioUrl=音频 m4s
+        ▼
+MediaSaver.saveMuxed()
+   ├─ 下载视频流到 cache（~20.9 MB）
+   ├─ 下载音频流到 cache（~5.4 MB）
+   ├─ DashMuxer.mux()：MediaExtractor 读两条 fMP4 → MediaMuxer 写普通 MP4
+   ├─ 拷贝到 MediaStore（Movies/AnySave），清 cache
+   └─ 失败则删除 pending 行、按失败计数（不留半截文件）
+```
+
+- **为什么必须合流**：B 站 `__playinfo__.dash` 只有分离的 video/audio 轨道，没有
+  `durl` 单文件 MP4；不合并就无法得到一个可播放的文件。合流是容器重封装（不转码），
+  实测 26.3 MB/212 s 的视频约 8 秒完成。
+- **清晰度**：未登录最多 480P（AVC），登录/大会员才有 720P/1080P；parser 在 AVC
+  （`codecid=7`）里取最高 id/码率档。
+- **UA 覆盖**：B 站对 Android WebView UA 会走 `bilibili://` 打开 App 的移动流程，
+  导致 WebView 导航被外部浏览器接管；其 CDN 也会对移动 UA 返回 403。因此
+  `MediaSite.BILIBILI` 的页面加载与下载都改用桌面 Chrome UA，其余站点不受影响。
+- **导航防护**：`MainActivity` 的 `WebViewClient.shouldOverrideUrlLoading` 拒绝所有
+  非 http(s) scheme（`bilibili://`、`intent://` 等），页面永远留在应用内。
 
 ## 保存管线（M2）
 
@@ -192,11 +219,13 @@ PreviewPanel 完成保存 ──▶ SaveService.complete()
 - Telegram token 是唯一的外部凭据，只存在于应用私有配置；任何日志、任务载荷、
   文档都不得包含它。
 - 所有站点数据里的媒体 URL 统一转成 https（release 禁止明文流量）。
+- 页面 UA 与下载 UA 可按站点覆盖（`SiteReader.pageUserAgent` /
+  `MediaSite.downloadUserAgent`）；非 http(s) scheme 一律禁止在 WebView 内跳转。
 - 站点 media URL 可能不带扩展名或走转码流水线：保存后按字节嗅探容器类型，
   MediaStore 的名称与 MIME 必须与实际内容一致。
 - 上传/下载等网络调用一律在后台线程；主线程只做状态渲染与通知更新。
 
-## 更新策略（M5）
+## 更新策略（M7）
 
 站点改版时，理想情况下只更新 reader 脚本包：
 

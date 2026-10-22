@@ -32,6 +32,13 @@ interface SiteReader {
     fun parse(body: String, sourceUrl: String): PostMedia? = null
 
     /**
+     * Optional UA override for loading this site's pages. Some sites (bilibili)
+     * detect the Android WebView UA and abort the in-app navigation; a desktop
+     * UA keeps the page in our WebView.
+     */
+    val pageUserAgent: String? get() = null
+
+    /**
      * Optional JavaScript expression that returns a JSON payload the page
      * already embedded in its own markup (server-side rendered data), or an
      * empty string. This is a read-only fallback for pages that never issue the
@@ -40,7 +47,7 @@ interface SiteReader {
     val embeddedPayloadScript: String? get() = null
 
     companion object {
-        private val readers: List<SiteReader> = listOf(DouyinReader, XiaohongshuReader)
+        private val readers: List<SiteReader> = listOf(DouyinReader, XiaohongshuReader, BilibiliReader)
 
         fun forUrl(url: String): SiteReader? = readers.firstOrNull { it.matches(url) }
 

@@ -37,6 +37,7 @@ object SaveJobCodec {
                     .put("url", item.url)
                     .put("previewUrl", item.previewUrl)
                     .put("fallbackUrl", item.fallbackUrl)
+                    .put("audioUrl", item.audioUrl)
                     .put("width", item.width)
                     .put("height", item.height)
                     .put("durationMs", item.durationMs)
@@ -70,6 +71,7 @@ object SaveJobCodec {
                     url = url,
                     previewUrl = obj.optString("previewUrl"),
                     fallbackUrl = obj.optString("fallbackUrl"),
+                    audioUrl = obj.optString("audioUrl"),
                     width = obj.optInt("width"),
                     height = obj.optInt("height"),
                     durationMs = obj.optLong("durationMs"),

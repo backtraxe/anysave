@@ -35,6 +35,7 @@ class SaveJobCodecTest {
         val video = decoded.items[1]
         assertEquals(MediaKind.VIDEO, video.kind)
         assertEquals(7_000L, video.durationMs)
+        assertEquals("https://example.com/audio.m4s", video.audioUrl)
         assertEquals(2, video.index)
     }
 
@@ -81,6 +82,7 @@ class SaveJobCodecTest {
                 height = 1920,
                 durationMs = 7_000,
                 index = 2,
+                audioUrl = "https://example.com/audio.m4s",
             ),
         )
 

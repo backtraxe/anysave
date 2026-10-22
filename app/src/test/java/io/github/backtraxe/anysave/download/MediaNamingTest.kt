@@ -94,6 +94,26 @@ class MediaNamingTest {
         assertEquals("image/webp", display.mimeType)
     }
 
+    @Test
+    fun `bilibili dash video is named after the bvid`() {
+        val post = POST.copy(site = MediaSite.BILIBILI, awemeId = "BV1GJ411x7h7")
+        val item = MediaItem(
+            id = "BV1GJ411x7h7-video-1",
+            kind = MediaKind.VIDEO,
+            url = "https://cn-hbwh-cm-01-03.bilivideo.com/x/137649199.m4s?e=abc",
+            previewUrl = "https://i1.hdslb.com/bfs/archive/pic.jpg",
+            audioUrl = "https://cn-hbwh-cm-01-03.bilivideo.com/x/audio.m4s?e=abc",
+            width = 852,
+            height = 480,
+            durationMs = 212_393,
+            index = 1,
+        )
+        val target = MediaNaming.target(post, item)
+        assertEquals("bilibili_BV1GJ411x7h7_video.mp4", target.displayName)
+        assertEquals("video/mp4", target.mimeType)
+        assertEquals("Movies/AnySave", target.relativeDir)
+    }
+
     private fun image(index: Int, url: String) = MediaItem(
         id = "img$index",
         kind = MediaKind.IMAGE,

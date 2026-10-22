@@ -8,13 +8,26 @@ package io.github.backtraxe.anysave.model
  * - [referer]: the page Referer that the site's media CDN expects when the
  *   page itself requests the asset (CDNs sometimes reject missing referers).
  */
+/** Desktop Chrome UA: bilibili page loads and CDN downloads require a non-mobile UA. */
+const val DESKTOP_CHROME_UA: String =
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 " +
+        "(KHTML, like Gecko) Chrome/150.0.0.0 Safari/537.36"
+
 enum class MediaSite(
     val id: String,
     val referer: String,
+    /** Some CDNs reject the app's mobile UA; null keeps the default UA. */
+    val downloadUserAgent: String? = null,
 ) {
     DOUYIN("douyin", "https://www.douyin.com/"),
     XIAOHONGSHU("xiaohongshu", "https://www.xiaohongshu.com/"),
-    BILIBILI("bilibili", "https://www.bilibili.com/"),
+    /**
+     * bilibili serves an app-open mobile flow to Android WebView UAs (which
+     * aborts navigation via an external-browser fallback) and its media CDN
+     * 403s the mobile UA. Page loads and downloads for this site use a
+     * desktop Chrome UA instead.
+     */
+    BILIBILI("bilibili", "https://www.bilibili.com/", DESKTOP_CHROME_UA),
     ;
 
     companion object {

@@ -317,3 +317,49 @@ M2 的保存只消费页面已经收到的 CDN 直链。先验证这些直链本
 - 小红书在真实登录态下的其它笔记形态、实况图视频、以及 token 过期后的错误提示
 - B 站音视频合流与保存（后续里程碑）
 - YouTube 专用提取库（后续里程碑）
+
+
+## 实验 P：B 站页面数据与 CDN 访问矩阵（M5）
+
+页面：`https://www.bilibili.com/video/BV1GJ411x7h7`。`__INITIAL_STATE__`（104 KB）与
+`__playinfo__`（44 KB）都内嵌在 SSR HTML 里，www 页面**没有** playurl XHR。
+
+| 项目 | 结果 |
+|---|---|
+| 页面数据 | `videoData`（bvid/cid/title/owner/duration/pic）+ `playinfo`（quality 32、timelength 212393、dash.video 6 档、dash.audio 3 档） |
+| 单文件流 | **没有 `durl`**，只有 DASH 分离轨道（视频 avc1 852×480 786766 bps；音频 mp4a.40.2 30280 203786 bps） |
+| 下载要求 | Referer 必需（缺省/仅 Origin → 403）+ UA 必须是非移动类；Cookie 不需要。桌面 Chrome / iPhone / okhttp UA 均 206；应用旧 Pixel UA、Android Chrome 124、WebView UA、curl、python-requests 全部 403 |
+| 实际下载 | 视频 20,872,903 B、音频 5,408,198 B（HTTP 200） |
+| URL 有效期 | `deadline` 约 2 小时后过期（本次 13:31 +08），需解析后尽快保存 |
+| 母带合流（ffmpeg 对照） | `ffmpeg -c copy` → 26,347,813 B、212.31 s、h264 852×480 + AAC 48 kHz 立体声，`-t 2` 解码无错误 |
+
+结论：B 站必须（a）页面用桌面 UA 加载，（b）下载用桌面 UA + Referer，（c）本机合流。
+
+## 实验 Q：B 站应用内端到端（APK 0.6.1）
+
+| 步骤 | 结果 |
+|---|---|
+| 提取 | `embedded payload found: 42589 chars` → `embedded parse ok in 2089ms, items=1` → `parsed aweme=BV1GJ411x7h7 author=索尼音乐中国 images=0 videos=1` |
+| 面板 | 1 item，作者「索尼音乐中国」，标题「【官方 MV】Never Gonna Give You Up - Rick Astley」，Videos(1)，时长 03:32，封面缩略图正常 |
+| 修复验证 A | 桌面 UA + WebViewClient 非 http(s) 拦截后：页面在应用内加载，无 `bilibili://` 拉起外部浏览器/App，日志无 START BROWSABLE |
+| 保存 | `save start` → `muxed … (v=20872903B a=5408198B -> 26309419B)` → `run finished: saved=1 failed=0`，耗时 8.2 s |
+| MediaStore | `bilibili_BV1GJ411x7h7_video.mp4`、`Movies/AnySave/`、`video/mp4`、852×480、`is_pending=0`、26,309,419 B |
+| 产物校验 | ffprobe：212.31 s、h264 852×480 + AAC 48 kHz 立体声；与 ffmpeg 母带合流相差 −38,394 B（−0.15%，容器布局差异），`ffmpeg -t 2 -f null -` 解码 rc=0 |
+| 崩溃/残留 | 无崩溃，无 pending 行，无 `download failed`/`mux failed` 日志 |
+
+## 实现结论（M5 追加）
+
+20. B 站不能只靠 UA 无关的观测：其移动 UA 会触发 App 拉起流程，必须按站点覆盖页面 UA；
+    同时用 `shouldOverrideUrlLoading` 拒绝非 http(s) scheme，避免任何外跳（合流前发现的
+    真实阻断点）。
+21. B 站 CDN 对 UA 有白名单式限制：Referer + 桌面 UA 是必需组合，Cookie 反而不需要；
+    因此下载 UA 也按站点覆盖，抖音/小红书保持原 UA 不受影响。
+22. DASH 合流用 MediaExtractor + MediaMuxer 即可（无 ffmpeg 依赖）：两条 fMP4 →
+    单 MP4，8 秒完成 212 秒视频，产物可解码、时长正确。
+23. 产物与「母带」ffmpeg 合流在流参数与时长上一致，仅容器布局差异（−0.15%）。
+
+## 未验证项（M5 追加）
+
+- B 站登录/大会员下的 720P/1080P 渲染（本次 Cookie 未登录，只有 480P/360P）
+- B 站多 P（`?p=`）与短链 `b23.tv`
+- YouTube（需要专用提取库，明确不在当前架构内）

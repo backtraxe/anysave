@@ -42,6 +42,7 @@ class PageExtractor(
     private val handler = Handler(Looper.getMainLooper())
     private val installedOrigins = mutableSetOf<String>()
     private val hookScript: String = readRaw(R.raw.hook)
+    private val defaultUserAgent: String = webView.settings.userAgentString
     private var generation = 0
     private var startedAt = 0L
     private var reader: SiteReader? = null
@@ -61,6 +62,9 @@ class PageExtractor(
             onFinished(ExtractionSnapshot(url, "", false, emptyList(), 0L))
             return
         }
+
+        // Some sites abort Android-WebView navigations; readers may pin a page UA.
+        webView.settings.userAgentString = reader.pageUserAgent ?: defaultUserAgent
 
         val origin = originOf(url) ?: reader.origin
         if (installedOrigins.add(origin)) {
@@ -84,6 +88,7 @@ class PageExtractor(
     fun release() {
         generation += 1
         handler.removeCallbacksAndMessages(null)
+        webView.settings.userAgentString = defaultUserAgent
     }
 
     private fun poll(gen: Int) {
@@ -164,6 +169,7 @@ class PageExtractor(
     private fun finish(snapshot: ExtractionSnapshot) {
         if (finished) return
         finished = true
+        webView.settings.userAgentString = defaultUserAgent
         onFinished(snapshot)
     }
 

@@ -11,7 +11,9 @@ import android.util.Log
 import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
+import android.webkit.WebResourceRequest
 import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.EditText
 import android.widget.TextView
@@ -70,6 +72,18 @@ class MainActivity : Activity() {
         if (BuildConfig.DEBUG) {
             // Never expose the production WebView to DevTools debugging.
             WebView.setWebContentsDebuggingEnabled(true)
+        }
+
+        webView.webViewClient = object : WebViewClient() {
+            override fun shouldOverrideUrlLoading(
+                view: WebView?,
+                request: WebResourceRequest?,
+            ): Boolean {
+                val scheme = request?.url?.scheme?.lowercase() ?: return false
+                // Keep everything in our WebView; never launch external apps
+                // or browsers from custom schemes (bilibili://, intent://, ...).
+                return scheme != "http" && scheme != "https"
+            }
         }
 
         extractor = PageExtractor(this, webView) { snapshot -> showResult(snapshot) }

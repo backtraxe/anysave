@@ -45,5 +45,7 @@ class MediaSiteTest {
         assertEquals("douyin", MediaSite.DOUYIN.id)
         assertEquals("xiaohongshu", MediaSite.XIAOHONGSHU.id)
         assertEquals("bilibili", MediaSite.BILIBILI.id)
+        assertEquals(DESKTOP_CHROME_UA, MediaSite.BILIBILI.downloadUserAgent)
+        assertEquals(null, MediaSite.DOUYIN.downloadUserAgent)
     }
 }

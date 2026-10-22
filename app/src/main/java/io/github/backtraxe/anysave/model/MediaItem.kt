@@ -27,6 +27,11 @@ data class MediaItem(
      * an original asset but can fall back to the site's display-transcoded copy.
      */
     val fallbackUrl: String = "",
+    /**
+     * Separate audio asset for sites that stream DASH tracks (bilibili). When
+     * set, the saver downloads both and muxes them into one MP4.
+     */
+    val audioUrl: String = "",
 ) {
     val hasDimensions: Boolean get() = width > 0 && height > 0
 
