@@ -164,4 +164,31 @@ class XiaohongshuParserTest {
         assertTrue(item.previewUrl.startsWith("https://ci.xiaohongshu.com/"))
     }
 
+
+    @Test
+    fun `collects stream arrays across EF keys and skips entries without a master url`() {
+        val body = """
+            {"noteId":"xyz","note":{"type":"video","title":"clip","desc":"d",
+              "user":{"nickname":"u"},
+              "video":{"media":{"video":{"duration":9},
+                "stream":{
+                  "EF4":[{"masterUrl":"","width":3840,"height":2160,"videoBitrate":9000000,"qualityType":"UHD"}],
+                  "EF5":[{"masterUrl":"http://sns-video.xhscdn.com/720.mp4","width":1280,"height":720,"videoBitrate":1500000,"qualityType":"HD"}],
+                  "EF6":[{"masterUrl":"http://sns-video.xhscdn.com/1080.mp4","width":1920,"height":1080,"videoBitrate":3000000,"qualityType":"FHD"}]
+                }}}}}
+        """.trimIndent()
+        val post = XiaohongshuParser.parse(body, "https://www.xiaohongshu.com/explore/xyz")!!
+        val item = post.items.single()
+        assertEquals("https://sns-video.xhscdn.com/1080.mp4", item.url)
+        assertEquals(1920, item.width)
+        assertEquals(1080, item.height)
+    }
+
+    @Test
+    fun `video note with no usable stream url returns null`() {
+        val body = """{"noteId":"z","note":{"type":"video","user":{"nickname":"u"},
+            "video":{"media":{"stream":{"EF4":[{"masterUrl":"","width":100,"height":100}]}}}}}"""
+        assertNull(XiaohongshuParser.parse(body, "https://www.xiaohongshu.com/explore/z"))
+    }
+
 }

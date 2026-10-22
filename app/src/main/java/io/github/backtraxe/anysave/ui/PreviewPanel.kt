@@ -48,6 +48,9 @@ class PreviewPanel(
 
         /** Open the system gallery at the first saved item. */
         fun onOpenAlbum()
+
+        /** Re-run the items that failed in the last save. */
+        fun onRetryFailed() {}
     }
 
     private enum class Filter { ALL, IMAGES, VIDEOS }
@@ -84,6 +87,7 @@ class PreviewPanel(
     private val saveRunningText: TextView = panel.findViewById(R.id.saveRunningText)
     private val saveFinishedSummary: TextView = panel.findViewById(R.id.saveFinishedSummary)
     private val saveFinishedFailed: TextView = panel.findViewById(R.id.saveFinishedFailed)
+    private val saveRetryButton: TextView = panel.findViewById(R.id.saveRetryButton)
     private val telegramUploadedText: TextView = panel.findViewById(R.id.telegramUploadedText)
     private val telegramUploadFailedText: TextView = panel.findViewById(R.id.telegramUploadFailedText)
     private val footerFinishedActions: View = panel.findViewById(R.id.footerFinishedActions)
@@ -472,6 +476,7 @@ class PreviewPanel(
         footerSecondary.visibility = if (idle) View.VISIBLE else View.GONE
         saveButton.visibility = if (idle || busy) View.VISIBLE else View.GONE
         saveFinishedFailed.visibility = View.GONE
+        saveRetryButton.visibility = View.GONE
         saveOpenAlbumButton.visibility = View.GONE
         telegramUploadedText.visibility = View.GONE
         telegramUploadFailedText.visibility = View.GONE
@@ -521,6 +526,15 @@ class PreviewPanel(
         }
 
         if (state is SaveState.Finished) {
+            saveRetryButton.visibility = if (state.retryable) View.VISIBLE else View.GONE
+            saveRetryButton.text = activity.getString(R.string.preview_retry_failed, state.failed)
+            saveRetryButton.setOnClickListener(
+                if (state.retryable) {
+                    { saveActions?.onRetryFailed() }
+                } else {
+                    null
+                },
+            )
             val album = state.albumName.ifBlank { activity.getString(R.string.app_name) }
             saveFinishedSummary.text = activity.resources.getQuantityString(
                 R.plurals.preview_saved_summary,

@@ -49,6 +49,7 @@
         <item quantity="other">%1$d 项保存失败</item>
     </plurals>
     <string name="preview_open_album">查看相册</string>
+    <string name="preview_retry_failed">重试 %1$d 个失败项</string>
     <string name="preview_done">完成</string>
     <string name="preview_announce_separator">，</string>
 

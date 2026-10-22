@@ -108,6 +108,8 @@ class MainActivity : Activity() {
             override fun onSaveRequested(items: List<MediaItem>) = requestSave(items)
 
             override fun onOpenAlbum() = openAlbum()
+
+            override fun onRetryFailed() = retryFailedSave()
         })
         findViewById<Button>(R.id.extractButton).setOnClickListener { startExtraction() }
         findViewById<View>(R.id.settingsButton).setOnClickListener {
@@ -340,6 +342,14 @@ class MainActivity : Activity() {
                 false -> getString(R.string.status_login_logged_out, label)
                 else -> getString(R.string.status_timeout)
             }
+        }
+    }
+
+    private fun retryFailedSave() {
+        if (SaveService.retryLastFailed(this)) {
+            statusText.text = getString(R.string.status_retrying_failed)
+        } else {
+            statusText.text = getString(R.string.status_nothing_to_retry)
         }
     }
 

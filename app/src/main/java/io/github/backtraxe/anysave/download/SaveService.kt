@@ -42,6 +42,7 @@ class SaveService : Service() {
     private val doneCount = AtomicInteger()
     private val failedCount = AtomicInteger()
     private val savedEntries = Collections.synchronizedList(ArrayList<SavedEntry>())
+    private val failedItems = Collections.synchronizedList(ArrayList<MediaItem>())
 
     @Volatile
     private var job: SaveJob? = null
@@ -78,6 +79,9 @@ class SaveService : Service() {
         doneCount.set(0)
         failedCount.set(0)
         savedEntries.clear()
+        failedItems.clear()
+        synchronized(lastFailedItems) { lastFailedItems.clear() }
+        lastPost = decoded.post
         firstUri = null
 
         SaveStateBus.publish(SaveState.Running(total = total, done = 0, failed = 0))
@@ -103,6 +107,8 @@ class SaveService : Service() {
             doneCount.incrementAndGet()
         } else {
             failedCount.incrementAndGet()
+            synchronized(failedItems) { failedItems += item }
+            synchronized(lastFailedItems) { lastFailedItems += item }
         }
         handler.post { onItemFinished() }
     }
@@ -233,6 +239,7 @@ class SaveService : Service() {
                 firstUri = firstUri,
                 uploaded = uploaded,
                 uploadFailed = uploadFailed,
+                retryable = failed > 0 && synchronized(failedItems) { failedItems.isNotEmpty() },
             ),
         )
         notificationManager()?.notify(
@@ -348,6 +355,22 @@ class SaveService : Service() {
         private const val NOTIFICATION_ID = 0x51
         private const val EXTRA_JOB = "io.github.backtraxe.anysave.extra.SAVE_JOB"
         private const val WORKERS = 3
+
+        @Volatile
+        private var lastPost: PostMedia? = null
+
+        /** Items from the last run that failed; used by the finished-panel retry. */
+        private val lastFailedItems = Collections.synchronizedList(ArrayList<MediaItem>())
+
+        /** Re-saves the items that failed in the last run; false when nothing to retry. */
+        fun retryLastFailed(context: Context): Boolean {
+            val post = lastPost ?: return false
+            val items = synchronized(lastFailedItems) { ArrayList(lastFailedItems) }
+            if (items.isEmpty()) return false
+            lastFailedItems.clear()
+            start(context, post, items)
+            return true
+        }
 
         /** Starts (or ignores, when already running) a save of [items] for [post]. */
         fun start(context: Context, post: PostMedia, items: List<MediaItem>) {

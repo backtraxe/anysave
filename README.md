@@ -12,7 +12,7 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 
 ## 状态
 
-**M17 小红书视频笔记 + 诊断回归 + JSON 导入验证**（可编译、可运行、已端到端验证）。完整链路：
+**M18 上传分组兜底 + 失败项重试 + 流选择细化**（可编译、可运行、已端到端验证）。完整链路：
 
 - 输入链接 → WebView 打开页面
 - 文档开始时注入响应监听（`app/src/main/res/raw/hook.js`），命中时连同响应体一起留下
@@ -34,6 +34,12 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 - **登录/会话（M9）**：设置页「登录」用**站点桌面版登录页**（App 内 WebView、
   手机扫码），登录态就是 WebView 的 Cookie，只存在应用私有目录；可一键清除
   所有站点登录态。抖音提取必须登录，B 站登录后可拿更高清晰度
+- **失败项一键重试（M18）**：保存失败时完成面板出现「Retry N failed」，点击重跑上一轮
+  失败项（离线保存失败 → 恢复网络 → 重试成功，实测 3/3）
+- **Telegram 上传兜底（M18）**：仍是每组 ≤10 条；某组失败时自动降级为逐条发送（一条坏图
+  不再拖累整组），失败单条再统一重试一次，caption 落在首个成功项
+- **小红书视频流细化（M18）**：跨 `EF4/EF5/EF6/EF7` 收集 stream，跳过没有 `masterUrl`
+  的候选，取最大分辨率/码率；补充单元测试覆盖跨 key 与空 URL
 - **小红书视频笔记（M17）**：桌面页视频流使用 `EF4/EF5/...` 键（而非旧 `h264`），
   parser 统一收集所有 stream 数组、取最大分辨率/码率，支持 `backupUrls` 兜底与封面回退；
   实测视频笔记保存 5,708,546 B（h264 1440×1080 + AAC 13.83 s）
@@ -92,6 +98,8 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 | 微博图文（3 图） | 3.2 s 解析出 3 项（作者杨伊琳10）；保存 3 张原图 229,606 / 256,742 / 221,566 B，MediaStore 尺寸正确、无 pending |
 | 微博视频（1 条） | 2.0 s 解析出 1 项；保存 1,896,528 B MP4（h264 720×1280 + AAC 44.1 kHz 立体声，13.72 s） |
 | 登录态检测 | 清空会话后三站均显示「未登录」；用真实浏览器会话后 `Douyin: Logged in · 背影` / `Bilibili: Logged in · Backtraxe` / `Xiaohongshu: Logged in · 山水之间`；清除后恢复未登录；探测不输出 Cookie 值 |
+| 失败项重试 | 飞行模式保存 3 张图 → `saved=0 failed=3`，面板出现「Retry 3 failed」；恢复网络点重试 → `Saved 3 items to AnySave`，无需重新提取 |
+| 上传分组兜底 | 代码层：组失败 → 逐条发送（组内成功项计入），失败单条排队再重试一次；caption 仅落在首个成功项。协议单测保持全绿（本轮未跑 mock Bot E2E） |
 | 小红书视频笔记 | 桌面页视频笔记：`items=1`（作者燃擎体育，13s）；保存 5,708,546 B，ffprobe h264 **1440×1080** + AAC 13.83 s；旧 `h264` 结构仍兼容（单测 77 条） |
 | 超时诊断回归 | B站无效 BV：登录时「Bilibili looks logged in…」，清除登录态后「You are not logged in to Bilibili…」；小红书风控/坏链接：登录时「Xiaohongshu looks logged in…」，清除后「You are not logged in to Xiaohongshu…」 |
 | Cookie-Editor JSON | UI 导入 5 条 JSON Cookie：DB 中 5/5 名称与值完全一致，`Bilibili: Logged in · Backtraxe` |
@@ -300,6 +308,7 @@ reader pack JSON，替换内置 reader 的**页面提取脚本**与**响应匹�
 - **M15** 小红书桌面页（风控规避）✅
 - **M16** 提取超时登录态诊断 ✅
 - **M17** 小红书视频笔记 + 诊断回归 + JSON 导入验证 ✅
+- **M18** 失败项重试 + Telegram 上传兜底 + 视频流细化 ✅
 
 ## 已知限制
 

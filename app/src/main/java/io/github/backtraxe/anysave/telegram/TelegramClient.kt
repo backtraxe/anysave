@@ -85,10 +85,11 @@ class TelegramClient(private val baseUrl: String) {
         var uploaded = 0
         var failed = oversized
         var lastError: String? = if (oversized > 0) "size limit" else null
-        var firstItemOverall = true
+        var captionPending = caption.isNotBlank()
+        val retryQueue = ArrayList<UploadAttachment>()
 
         groups.forEachIndexed { index, group ->
-            val groupCaption = if (firstItemOverall && caption.isNotBlank()) caption else ""
+            val groupCaption = if (captionPending) caption else ""
             try {
                 if (group.size == 1) {
                     sendSingle(token, chatId, group.single(), groupCaption)
@@ -96,13 +97,47 @@ class TelegramClient(private val baseUrl: String) {
                     sendAlbum(token, chatId, group, groupCaption)
                 }
                 uploaded += group.size
+                captionPending = false
                 Log.i(TAG, "telegram: group ${index + 1}/${groups.size} sent (${group.size} item(s))")
             } catch (t: Throwable) {
-                failed += group.size
                 lastError = t.message ?: t.javaClass.simpleName
-                Log.w(TAG, "telegram: group ${index + 1}/${groups.size} failed: $lastError")
+                Log.w(
+                    TAG,
+                    "telegram: group ${index + 1}/${groups.size} failed: $lastError, " +
+                        "trying items individually",
+                )
+                // One bad item must not lose the rest of the album; failed
+                // singles are queued for one retry pass after all groups.
+                var groupUploaded = 0
+                for (attachment in group) {
+                    val itemCaption = if (captionPending && groupUploaded == 0) caption else ""
+                    try {
+                        sendSingle(token, chatId, attachment, itemCaption)
+                        groupUploaded += 1
+                        captionPending = false
+                    } catch (itemError: Throwable) {
+                        lastError = itemError.message ?: itemError.javaClass.simpleName
+                        retryQueue += attachment
+                    }
+                }
+                uploaded += groupUploaded
+                failed += group.size - groupUploaded
             }
-            firstItemOverall = false
+            onProgress(uploaded, failed)
+        }
+
+        if (retryQueue.isNotEmpty()) {
+            Log.i(TAG, "telegram: retrying ${retryQueue.size} failed attachment(s) once")
+            for (attachment in retryQueue) {
+                try {
+                    sendSingle(token, chatId, attachment, "")
+                    uploaded += 1
+                    failed -= 1
+                    captionPending = false
+                } catch (t: Throwable) {
+                    lastError = t.message ?: t.javaClass.simpleName
+                }
+            }
             onProgress(uploaded, failed)
         }
         return UploadSummary(uploaded = uploaded, failed = failed, lastError = lastError)

@@ -179,7 +179,8 @@ object XiaohongshuParser {
         for (key in stream.keys()) {
             val array = stream.optJSONArray(key) ?: continue
             for (i in 0 until array.length()) {
-                array.optJSONObject(i)?.let { candidates += it }
+                val entry = array.optJSONObject(i) ?: continue
+                if (normalizeUrl(entry.optString("masterUrl")) != null) candidates += entry
             }
         }
         if (candidates.isEmpty()) return null

@@ -52,6 +52,7 @@
         <item quantity="other">%1$d items could not be saved</item>
     </plurals>
     <string name="preview_open_album">View album</string>
+    <string name="preview_retry_failed">Retry %1$d failed</string>
     <string name="preview_done">Done</string>
     <string name="preview_announce_separator">". "</string>
 
