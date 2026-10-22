@@ -62,6 +62,12 @@ class SaveService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.getBooleanExtra(EXTRA_RETRY, false) == true) {
+            // Notification action: re-run the failed items from the last run.
+            val started = retryLastFailed(this)
+            if (!started) stopSelf()
+            return START_NOT_STICKY
+        }
         val decoded = SaveJobCodec.decode(intent?.getStringExtra(EXTRA_JOB))
         if (decoded == null || decoded.items.isEmpty()) {
             Log.w(TAG, "save start ignored: empty job")
@@ -325,13 +331,29 @@ class SaveService : Service() {
             failed > 0 -> getString(R.string.notification_saved_partial, saved, failed)
             else -> getString(R.string.notification_saved_text, saved)
         }
-        return Notification.Builder(this, CHANNEL_ID)
+        val builder = Notification.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(getString(R.string.notification_saved_title))
             .setContentText(text)
             .setAutoCancel(true)
             .setContentIntent(openAppIntent())
-            .build()
+        if (failed > 0 && synchronized(lastFailedItems) { lastFailedItems.isNotEmpty() }) {
+            val retryIntent = Intent(this, SaveService::class.java).putExtra(EXTRA_RETRY, true)
+            val retryPending = PendingIntent.getService(
+                this,
+                RETRY_REQUEST_CODE,
+                retryIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
+            )
+            builder.addAction(
+                Notification.Action.Builder(
+                    android.graphics.drawable.Icon.createWithResource(this, R.drawable.ic_notification),
+                    getString(R.string.notification_retry_action),
+                    retryPending,
+                ).build(),
+            )
+        }
+        return builder.build()
     }
 
     private fun openAppIntent(): PendingIntent {
@@ -354,6 +376,8 @@ class SaveService : Service() {
         private const val CHANNEL_ID = "anysave_saves"
         private const val NOTIFICATION_ID = 0x51
         private const val EXTRA_JOB = "io.github.backtraxe.anysave.extra.SAVE_JOB"
+        private const val EXTRA_RETRY = "io.github.backtraxe.anysave.extra.RETRY"
+        private const val RETRY_REQUEST_CODE = 0x52
         private const val WORKERS = 3
 
         @Volatile

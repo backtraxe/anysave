@@ -745,3 +745,43 @@ daemon `127.0.0.1:10086`）在用户真实浏览器里读取会话，再用 debu
 
 - Telegram 分组兜底/重试的 mock Bot 端到端（代码路径已实现，协议单测通过）
 - 进程被杀后的失败项重试（失败队列在内存，retryable 会置 false）
+
+## 实验 AF：Telegram mock 端到端 + 通知重试（M19）
+
+### 1) 正常分组（16 张图）
+- mock Bot（本地 8081 + adb reverse）：App 日志 `telegram: group 1/2 sent (10 item(s))`、
+  `group 2/2 sent (6 item(s))`、`finished uploaded=16 failed=0`；
+- mock 收到 2 个 `sendMediaGroup` 请求（10 + 6），无单张请求。
+
+### 2) 故障注入（首组 400 + 一张单图 400）
+- App 日志：
+  `group 1/2 failed: Bad Request: mock rejection, trying items individually`
+  → `group 2/2 sent (6 item(s))` → `retrying 1 failed attachment(s) once`
+  → `finished uploaded=16 failed=0`；
+- mock 请求序列 13 条：`sendMediaGroup(fail)` → 10×`sendPhoto`（其中 1 条 fail）→
+  `sendMediaGroup(ok)` → 1×`sendPhoto(ok)`，与预期完全一致。
+
+### 3) 通知 Retry 入口
+- 飞行模式保存 3 张 → 失败通知 `0 saved, 3 failed`；
+- `dumpsys notification`：`actions=1`，action 标题「Retry failed」，PendingIntent 目标为
+  `SaveService startService`（与面板重试共用 `retryLastFailed`）；
+- 面板「Retry 3 failed」已在 M18 做过恢复网络后重试成功 3/3 的端到端验证。
+
+### 4) 小红书多档流取样
+- 通过真实浏览器取样 4 条视频笔记：`stream` 均为 `{"EF4":1,"EF5":0,"EF6":0,"EF7":0}`；
+  未观察到 EF5/EF6/EF7 实际有内容（可能与账号/清晰度有关）。
+- 跨 key 选择已有单测覆盖（EF4/EF5/EF6 混合 + 空 URL 跳过）。
+
+## 实现结论（M19 追加）
+
+70. 上传分组逻辑经真实 multipart 请求验证：10+6 分组、caption 只在首批；故障注入下
+    「组失败→逐条→单条重试」完整闭环，且不会重复成功项。
+71. 失败通知里放「Retry failed」action 是低成本高价值：用户不必打开 App 就能补救；
+    通知与面板共用同一重试状态，避免逻辑分叉。
+72. 小红书多档流实际取样仍以 EF4 为主；parser 的收集式选择保证 EF5/EF6/EF7 一旦出现
+    也能直接工作。
+
+## 未验证项（M19 追加）
+
+- 真机点击通知按钮的 UI 路径（已用 dumpsys 校验 action/PendingIntent，服务路径与面板共享）
+- 含 EF5/EF6/EF7 非空档位的真实笔记（本轮 4 条样本均只有 EF4）

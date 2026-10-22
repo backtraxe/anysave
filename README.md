@@ -12,7 +12,7 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 
 ## 状态
 
-**M18 上传分组兜底 + 失败项重试 + 流选择细化**（可编译、可运行、已端到端验证）。完整链路：
+**M19 失败通知重试入口 + Telegram 分组端到端**（可编译、可运行、已端到端验证）。完整链路：
 
 - 输入链接 → WebView 打开页面
 - 文档开始时注入响应监听（`app/src/main/res/raw/hook.js`），命中时连同响应体一起留下
@@ -34,6 +34,11 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 - **登录/会话（M9）**：设置页「登录」用**站点桌面版登录页**（App 内 WebView、
   手机扫码），登录态就是 WebView 的 Cookie，只存在应用私有目录；可一键清除
   所有站点登录态。抖音提取必须登录，B 站登录后可拿更高清晰度
+- **通知里直接重试（M19）**：保存有失败项时，完成通知带「Retry failed」按钮，
+  不用打开 App 即可重跑失败项；通知文案同时显示 `N saved, M failed`
+- **Telegram 分组实测（M19）**：mock Bot 端到端验证 16 张图分两批（10 + 6）上传；
+  注入「首组 400 + 单张 400」后：组失败→逐条降级（9 成功 1 失败）→ 第二组成功 →
+  失败单张自动重试成功，最终 `uploaded=16 failed=0`
 - **失败项一键重试（M18）**：保存失败时完成面板出现「Retry N failed」，点击重跑上一轮
   失败项（离线保存失败 → 恢复网络 → 重试成功，实测 3/3）
 - **Telegram 上传兜底（M18）**：仍是每组 ≤10 条；某组失败时自动降级为逐条发送（一条坏图
@@ -98,6 +103,9 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 | 微博图文（3 图） | 3.2 s 解析出 3 项（作者杨伊琳10）；保存 3 张原图 229,606 / 256,742 / 221,566 B，MediaStore 尺寸正确、无 pending |
 | 微博视频（1 条） | 2.0 s 解析出 1 项；保存 1,896,528 B MP4（h264 720×1280 + AAC 44.1 kHz 立体声，13.72 s） |
 | 登录态检测 | 清空会话后三站均显示「未登录」；用真实浏览器会话后 `Douyin: Logged in · 背影` / `Bilibili: Logged in · Backtraxe` / `Xiaohongshu: Logged in · 山水之间`；清除后恢复未登录；探测不输出 Cookie 值 |
+| Telegram 分组/兜底 | mock Bot：16 张图两批（10+6）全部成功；故障注入后日志 `group 1/2 failed → trying items individually`、`retrying 1 failed attachment(s) once`、`finished uploaded=16 failed=0`，mock 侧收到 13 个请求（1 组失败 + 10 单张 + 1 组成功 + 1 张重试） |
+| 失败通知重试 | 离线保存 3 张失败后：通知 `0 saved, 3 failed` + action「Retry failed」（PendingIntent startService）；面板「Retry 3 failed」实测恢复网络后保存成功 3/3 |
+| 视频流取样 | 通过真实浏览器取样 4 条小红书视频笔记：stream 均为 `EF4`（EF5/EF6/EF7 为空）；跨 key 选择由单测覆盖 |
 | 失败项重试 | 飞行模式保存 3 张图 → `saved=0 failed=3`，面板出现「Retry 3 failed」；恢复网络点重试 → `Saved 3 items to AnySave`，无需重新提取 |
 | 上传分组兜底 | 代码层：组失败 → 逐条发送（组内成功项计入），失败单条排队再重试一次；caption 仅落在首个成功项。协议单测保持全绿（本轮未跑 mock Bot E2E） |
 | 小红书视频笔记 | 桌面页视频笔记：`items=1`（作者燃擎体育，13s）；保存 5,708,546 B，ffprobe h264 **1440×1080** + AAC 13.83 s；旧 `h264` 结构仍兼容（单测 77 条） |
@@ -309,6 +317,7 @@ reader pack JSON，替换内置 reader 的**页面提取脚本**与**响应匹�
 - **M16** 提取超时登录态诊断 ✅
 - **M17** 小红书视频笔记 + 诊断回归 + JSON 导入验证 ✅
 - **M18** 失败项重试 + Telegram 上传兜底 + 视频流细化 ✅
+- **M19** 通知重试入口 + Telegram 分组 mock 端到端 ✅
 
 ## 已知限制
 
