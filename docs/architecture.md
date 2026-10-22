@@ -103,6 +103,7 @@ SiteReader.forUrl(url)
    ├── XiaohongshuReader   origin www.xiaohongshu.com  SSR 内嵌数据（无网络模式）
    ├── BilibiliReader      origin www.bilibili.com    SSR + DASH 合流 + 桌面 UA
    ├── WeiboReader         origin weibo.com           SSR（$render_data.status）
+   ├── AcfunReader         origin www.acfun.cn         SSR（window.articleInfo）
    └── YouTubeExtractor    DirectExtractor（专用提取器，不经 WebView）
 ```
 
@@ -124,6 +125,9 @@ SiteReader.forUrl(url)
 - **微博**（M8）：`weibo.com/<uid>/<bid>` 重定向到 `m.weibo.cn/status/<bid>`，SSR 里
   有 `$render_data.status`；图片取 `pics[].large`，视频取 `page_info.urls` 最优档；
   `MediaSite.WEIBO` 提供 `https://weibo.com/` Referer（sinaimg / weibocdn 缺它会 403）。
+- **AcFun**（M10）：文章页 `/a/ac<id>` 的 `window.articleInfo` 含 title/author/
+  cover/`parts[].content` HTML；parser 从 HTML 取 `<img src>` 原图（aixifan 免 Referer），
+  封面兜底。A 站视频页是 HLS（`videoInfo` 里的 m3u8），当前保存管线不处理。
 - **YouTube** 走专用提取器，见下一节。
 
 ## B 站与 DASH 合流（M5）

@@ -47,7 +47,7 @@ interface SiteReader {
     val embeddedPayloadScript: String? get() = null
 
     companion object {
-        private val readers: List<SiteReader> = listOf(DouyinReader, XiaohongshuReader, BilibiliReader, WeiboReader)
+        private val readers: List<SiteReader> = listOf(DouyinReader, XiaohongshuReader, BilibiliReader, WeiboReader, AcfunReader)
 
         fun forUrl(url: String): SiteReader? = readers.firstOrNull { it.matches(url) }
 

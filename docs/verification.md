@@ -465,3 +465,28 @@ M2 的保存只消费页面已经收到的 CDN 直链。先验证这些直链本
   后的持久化/清除/提取链路）
 - 登录过期后的自动提示（当前依赖提取超时提示）
 - YouTube 登录（不支持，不需要）
+
+## 实验 V：AcFun 图文（M10）
+
+| 步骤 | 结果 |
+|---|---|
+| 页面形态 | `https://www.acfun.cn/a/ac48924768` 公开文章，SSR 暴露 `window.articleInfo`（title/author/coverUrl/`parts[].content` HTML）；无需登录（只有自动 visitor cookie） |
+| 提取 | `reader=acfun hook installed` → `embedded payload found: 7062 chars` → `embedded parse ok in 2039ms, items=3` → `parsed aweme=ac48924768 author=AcFun活动 images=3 videos=0`；面板 3 项、标题/作者/缩略图正常（aixifan CDN） |
+| 保存 | `saved=3 failed=0`：`acfun_ac48924768_01.png` 1,658,046 B（2048×1152）、`_02.png` 2,256,625 B（2048×2048）、`_03.jpg` 2,642,498 B（8000×4500 封面）；MediaStore `Pictures/AnySave/` 三行 `is_pending=0`；拉回 PIL 解码通过，容器嗅探把封面的 `.png` 纠正为 `.jpg` |
+| 负例 | `https://www.acfun.cn/v/ac48905515`（A 站视频，HLS）→ 状态「No reader for this site yet.」，logcat 无任何提取日志，无崩溃 |
+| 登录需求 | 从已清除会话的状态开始，无需登录即可提取/保存 |
+
+## 实现结论（M10 追加）
+
+36. AcFun 文章是干净的 SSR 观察站点（`window.articleInfo` + HTML 图片），与微博/小红书
+    同一条「内嵌脚本 + 纯 JVM parser」路径，无需 UA/Referer 覆盖（aixifan 图片可直接下载）。
+37. 媒体 URL 后缀不可信：文章原图/封面可能是 PNG 却带 `.jpg`/无后缀，保存端必须继续
+    依赖 `MediaSniffer` 的容器嗅探纠正扩展名（本次封面 `.png → .jpg` 实测生效）。
+38. A 站视频走 HLS（`videoInfo.currentVideoInfo.ksPlayJson` 内 m3u8），现有「下载单文件/
+    DASH 合流」管线不支持；明确记录为限制，不做半吊子实现。
+
+## 未验证项（M10 追加）
+
+- A 站视频（HLS）与番剧页面
+- 动态/评论/专栏等其他 A 站内容形态
+- 文章内视频嵌入（如有）

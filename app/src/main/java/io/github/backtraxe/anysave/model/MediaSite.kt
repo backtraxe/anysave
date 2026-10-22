@@ -32,6 +32,8 @@ enum class MediaSite(
     YOUTUBE("youtube", "https://www.youtube.com/", DESKTOP_CHROME_UA),
     /** Weibo media CDNs require a weibo Referer. */
     WEIBO("weibo", "https://weibo.com/"),
+    /** AcFun images live on aixifan/tx-free CDNs. */
+    ACFUN("acfun", "https://www.acfun.cn/"),
     ;
 
     companion object {
@@ -55,6 +57,8 @@ enum class MediaSite(
 
             url.contains("sinaimg.cn") || url.contains("weibocdn.com") ||
                 url.contains("weibo.cn") || url.contains("weibo.com") -> WEIBO.referer
+
+            url.contains("aixifan.com") || url.contains("acfun.cn") -> ACFUN.referer
 
             else -> DOUYIN.referer
         }
