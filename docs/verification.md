@@ -435,3 +435,33 @@ M2 的保存只消费页面已经收到的 CDN 直链。先验证这些直链本
 - YouTube 720p 以上档位与登录态画质（本次取 ≤720p，未登录）
 - 微博主页/话题/评论区、长文（头条文章）形态
 - 本机 googlevideo DNS 劫持属于验证环境问题，真实用户网络未必受影响
+
+## 实验 U：登录与会话（M9）
+
+| 场景 | 结果 |
+|---|---|
+| 登录卡片 | 设置页底部「登录」卡片含 抖音/B站/小红书 三个按钮 + 「清除所有登录态」；EN/ZH 均正常渲染 |
+| 打开抖音登录页 | App 内 MainActivity 以桌面 UA 打开 `https://www.douyin.com/`：标题「抖音-记录美好生活」、页面含「登录」入口，**不是**移动端「下载 APP」页；状态栏提示扫码登录 |
+| 打开 B 站登录页 | 桌面 UA 打开 `https://www.bilibili.com/`：标题「哔哩哔哩…」、含「登录」弹层入口 |
+| 打开小红书登录页 | 直接重定向到 `https://www.xiaohongshu.com/login?...`，页面含「扫码」入口（QR 元素 2 个） |
+| 会话持久化 | 用 debug CDP 注入测试 Cookie（douyin `sessionid`、bilibili `SESSDATA`、xhs `web_session`）→ 杀进程/重启应用 → 三者在 `app_webview/Default/Cookies` 中仍存在（3/3） |
+| 清除登录态 | 点「清除所有登录态」→ 状态「Cleared 3 session(s).」；三站 Cookie 行数均为 0（DB 实测） |
+| 超时提示 | 无 Cookie 提取抖音视频 → 25 s 超时，状态变为「…If this page needs a login, use Settings → Login first.」 |
+| 登录后回归 | 注入抖音 Cookie 后提取成功：`Parsed 1 item(s) in 8179 ms`；访问登录页后 B 站仍正常解析 480P：`Parsed 1 item(s) in 5764 ms` |
+
+## 实现结论（M9 追加）
+
+32. 登录页不能直接用 App 的默认移动 UA：抖音会渲染「下载 APP」营销页，B 站首页又不在
+    reader 匹配内；用桌面 UA 打开站点登录页是可靠路径（扫码登录入口均在），且不影响提取 UA。
+33. 登录态天然由 WebView CookieStore 持久化，不需要导出/注入；清理必须同时处理
+    Cookie 与 WebStorage，否则部分站点仍保持登录。
+34. 不做「登录状态」展示是刻意取舍：HttpOnly Cookie 无法枚举，猜测状态会误导用户；
+    用页面表现 + 提取结果判断更真实。
+35. 清除登录态是全局操作（WebView 没有按域删除 API），文档与提示需讲清会清掉访客 Cookie。
+
+## 未验证项（M9 追加）
+
+- 真实手机扫码完成登录的完整交互（自动化环境无法扫码；已验证登录页渲染、Cookie 注入
+  后的持久化/清除/提取链路）
+- 登录过期后的自动提示（当前依赖提取超时提示）
+- YouTube 登录（不支持，不需要）

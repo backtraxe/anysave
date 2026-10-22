@@ -8,6 +8,7 @@ import android.widget.Switch
 import android.widget.TextView
 import android.widget.Toast
 import io.github.backtraxe.anysave.reader.ReaderPackRepository
+import io.github.backtraxe.anysave.session.SessionManager
 import io.github.backtraxe.anysave.telegram.TelegramClient
 import io.github.backtraxe.anysave.telegram.TelegramConfig
 import io.github.backtraxe.anysave.telegram.TelegramProtocol
@@ -33,6 +34,11 @@ class TelegramSettingsActivity : Activity() {
     private lateinit var readerPackCheckButton: View
     private lateinit var readerPackStatus: TextView
     private lateinit var readerPackRepository: ReaderPackRepository
+    private lateinit var loginDouyin: View
+    private lateinit var loginBilibili: View
+    private lateinit var loginXiaohongshu: View
+    private lateinit var clearSessions: View
+    private lateinit var sessionsStatus: TextView
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,6 +55,11 @@ class TelegramSettingsActivity : Activity() {
         readerPackCheckButton = findViewById(R.id.readerPackCheckButton)
         readerPackStatus = findViewById(R.id.readerPackStatus)
         readerPackRepository = ReaderPackRepository(this)
+        loginDouyin = findViewById(R.id.loginDouyin)
+        loginBilibili = findViewById(R.id.loginBilibili)
+        loginXiaohongshu = findViewById(R.id.loginXiaohongshu)
+        clearSessions = findViewById(R.id.clearSessions)
+        sessionsStatus = findViewById(R.id.sessionsStatus)
 
         val saved = TelegramSettings.load(this)
         tokenInput.setText(saved.botToken)
@@ -61,6 +72,10 @@ class TelegramSettingsActivity : Activity() {
         saveButton.setOnClickListener { saveSettings() }
         testButton.setOnClickListener { sendTestMessage() }
         readerPackCheckButton.setOnClickListener { checkReaderPack() }
+        loginDouyin.setOnClickListener { openLoginPage(SessionManager.SITES[0].url) }
+        loginBilibili.setOnClickListener { openLoginPage(SessionManager.SITES[1].url) }
+        loginXiaohongshu.setOnClickListener { openLoginPage(SessionManager.SITES[2].url) }
+        clearSessions.setOnClickListener { clearAllSessions() }
     }
 
     private fun currentConfig(): TelegramConfig = TelegramConfig(
@@ -122,6 +137,38 @@ class TelegramSettingsActivity : Activity() {
                 )
             }
         }.start()
+    }
+
+    private fun openLoginPage(url: String) {
+        val host = try {
+            android.net.Uri.parse(url).host ?: url
+        } catch (t: Throwable) {
+            url
+        }
+        showSessionsStatus(getString(R.string.login_opening, host))
+        startActivity(
+            android.content.Intent(this, MainActivity::class.java)
+                .putExtra(MainActivity.EXTRA_OPEN_URL, url)
+                .addFlags(android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP or android.content.Intent.FLAG_ACTIVITY_SINGLE_TOP),
+        )
+        finish()
+    }
+
+    private fun clearAllSessions() {
+        if (clearSessions.isEnabled.not()) return
+        clearSessions.isEnabled = false
+        showSessionsStatus(getString(R.string.login_clear_all) + "…")
+        SessionManager.clearAll { count ->
+            runOnUiThread {
+                clearSessions.isEnabled = true
+                showSessionsStatus(getString(R.string.login_cleared, count))
+            }
+        }
+    }
+
+    private fun showSessionsStatus(text: String) {
+        sessionsStatus.text = text
+        sessionsStatus.visibility = View.VISIBLE
     }
 
     private fun checkReaderPack() {

@@ -25,6 +25,7 @@ import io.github.backtraxe.anysave.extractor.PageExtractor
 import io.github.backtraxe.anysave.model.ExtractionSnapshot
 import io.github.backtraxe.anysave.model.MediaItem
 import io.github.backtraxe.anysave.model.PostMedia
+import io.github.backtraxe.anysave.model.DESKTOP_CHROME_UA
 import io.github.backtraxe.anysave.model.SaveState
 import io.github.backtraxe.anysave.reader.DirectExtractor
 import io.github.backtraxe.anysave.reader.DirectExtractors
@@ -106,6 +107,33 @@ class MainActivity : Activity() {
         findViewById<View>(R.id.settingsButton).setOnClickListener {
             startActivity(Intent(this, TelegramSettingsActivity::class.java))
         }
+
+        handleExternalOpenUrl(intent)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        handleExternalOpenUrl(intent)
+    }
+
+    /**
+     * Opens a page for login (settings → Login). The page is loaded with a
+     * desktop UA so the site shows its QR login instead of the mobile app
+     * download flow; cookies it sets are shared with all later extractions.
+     */
+    private fun handleExternalOpenUrl(intent: Intent?) {
+        val url = intent?.getStringExtra(EXTRA_OPEN_URL) ?: return
+        if (!url.startsWith("https://") && !url.startsWith("http://")) return
+        intent.removeExtra(EXTRA_OPEN_URL)
+        closePreview()
+        hideKeyboard()
+        webView.settings.userAgentString = DESKTOP_CHROME_UA
+        urlInput.setText(url)
+        urlInput.clearFocus()
+        statusText.text = getString(R.string.status_login_opened)
+        webView.loadUrl(url)
+        Log.i(TAG, "opened login page $url")
     }
 
     override fun onStart() {
@@ -306,8 +334,9 @@ class MainActivity : Activity() {
         super.onDestroy()
     }
 
-    private companion object {
+    companion object {
         private const val TAG = "AnySave"
         private const val REQUEST_SAVE_PERMISSIONS = 41
+        const val EXTRA_OPEN_URL = "io.github.backtraxe.anysave.extra.OPEN_URL"
     }
 }

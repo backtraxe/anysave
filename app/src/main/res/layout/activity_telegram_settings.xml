@@ -4,8 +4,10 @@
 
   Contract ids (Lead wires these): settingsBack, settingsTokenInput,
   settingsChatInput, settingsAutoUpload, settingsTestButton,
-  settingsSaveButton, settingsStatus (starts gone), and the reader hot-update
-  card: readerPackUrlInput, readerPackCheckButton, readerPackStatus.
+  settingsSaveButton, settingsStatus (starts gone), the reader hot-update
+  card: readerPackUrlInput, readerPackCheckButton, readerPackStatus, and the
+  in-app login card: loginDouyin, loginBilibili, loginXiaohongshu,
+  clearSessions, sessionsStatus.
 -->
 <ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
@@ -314,6 +316,151 @@
                 android:textColor="@color/text_primary"
                 android:textSize="14sp"
                 android:visibility="gone" />
+
+        <!-- In-app login: open each site's desktop login page inside the app and
+             scan the QR code with the phone. Sessions stay in this app's WebView;
+             post links are still pasted in the main screen afterwards. -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="24dp"
+            android:background="@drawable/bg_settings_card"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/login_title"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="2dp"
+                android:lineSpacingExtra="2dp"
+                android:text="@string/login_hint"
+                android:textColor="@color/preview_text_secondary"
+                android:textSize="12sp" />
+
+            <!-- One 48dp secondary button per site; autosize keeps the long
+                 English label on one line on narrow screens. -->
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:orientation="horizontal">
+
+                <Button
+                    android:id="@+id/loginDouyin"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_weight="1"
+                    android:autoSizeMaxTextSize="14sp"
+                    android:autoSizeMinTextSize="11sp"
+                    android:autoSizeTextType="uniform"
+                    android:background="@drawable/bg_settings_secondary_button"
+                    android:fontFamily="sans-serif-medium"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:minWidth="0dp"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp"
+                    android:stateListAnimator="@null"
+                    android:text="@string/login_douyin"
+                    android:textAllCaps="false"
+                    android:textColor="@color/brand"
+                    android:textSize="14sp" />
+
+                <Button
+                    android:id="@+id/loginBilibili"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:autoSizeMaxTextSize="14sp"
+                    android:autoSizeMinTextSize="11sp"
+                    android:autoSizeTextType="uniform"
+                    android:background="@drawable/bg_settings_secondary_button"
+                    android:fontFamily="sans-serif-medium"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:minWidth="0dp"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp"
+                    android:stateListAnimator="@null"
+                    android:text="@string/login_bilibili"
+                    android:textAllCaps="false"
+                    android:textColor="@color/brand"
+                    android:textSize="14sp" />
+
+                <Button
+                    android:id="@+id/loginXiaohongshu"
+                    android:layout_width="0dp"
+                    android:layout_height="48dp"
+                    android:layout_marginStart="8dp"
+                    android:layout_weight="1"
+                    android:autoSizeMaxTextSize="14sp"
+                    android:autoSizeMinTextSize="11sp"
+                    android:autoSizeTextType="uniform"
+                    android:background="@drawable/bg_settings_secondary_button"
+                    android:fontFamily="sans-serif-medium"
+                    android:gravity="center"
+                    android:maxLines="1"
+                    android:minHeight="0dp"
+                    android:minWidth="0dp"
+                    android:paddingStart="6dp"
+                    android:paddingEnd="6dp"
+                    android:stateListAnimator="@null"
+                    android:text="@string/login_xiaohongshu"
+                    android:textAllCaps="false"
+                    android:textColor="@color/brand"
+                    android:textSize="14sp" />
+            </LinearLayout>
+
+            <!-- Quiet, destructive action: clears cookies/storage for all sites. -->
+            <TextView
+                android:id="@+id/clearSessions"
+                android:layout_width="wrap_content"
+                android:layout_height="44dp"
+                android:layout_marginTop="8dp"
+                android:background="@drawable/bg_text_button"
+                android:clickable="true"
+                android:focusable="true"
+                android:fontFamily="sans-serif-medium"
+                android:gravity="center_vertical"
+                android:paddingStart="8dp"
+                android:paddingEnd="8dp"
+                android:text="@string/login_clear_all"
+                android:textColor="@color/preview_danger"
+                android:textSize="14sp" />
+
+            <TextView
+                android:id="@+id/sessionsStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:accessibilityLiveRegion="polite"
+                android:background="@drawable/bg_settings_status"
+                android:lineSpacingExtra="2dp"
+                android:padding="14dp"
+                android:textColor="@color/text_primary"
+                android:textSize="14sp"
+                android:visibility="gone" />
+
+            <TextView
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="10dp"
+                android:text="@string/login_note"
+                android:textColor="@color/preview_text_secondary"
+                android:textSize="12sp" />
+        </LinearLayout>
+
         </LinearLayout>
 
     </LinearLayout>

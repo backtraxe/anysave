@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="login_title">Login</string>
+    <string name="login_hint">Open a site\'s desktop login page inside the app and scan the QR code with your phone. The session stays in this app\'s WebView, and you still paste post links afterwards.</string>
+    <string name="login_douyin">Douyin</string>
+    <string name="login_bilibili">Bilibili</string>
+    <string name="login_xiaohongshu">Xiaohongshu</string>
+    <string name="login_clear_all">Clear all sessions</string>
+    <string name="login_opening">Opening %1$s…</string>
+    <string name="login_cleared">Cleared %1$d session(s).</string>
+    <string name="login_clear_failed">Could not clear sessions.</string>
+    <string name="login_note">YouTube does not need a login.</string>
+</resources>

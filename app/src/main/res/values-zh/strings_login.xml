@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="login_title">登录</string>
+    <string name="login_hint">在应用内打开对应站点的桌面版登录页，用手机扫码登录。登录态只保存在本应用的 WebView 里，登录后仍然粘贴作品链接来解析。</string>
+    <string name="login_douyin">抖音</string>
+    <string name="login_bilibili">B站</string>
+    <string name="login_xiaohongshu">小红书</string>
+    <string name="login_clear_all">清除所有登录态</string>
+    <string name="login_opening">正在打开 %1$s…</string>
+    <string name="login_cleared">已清除 %1$d 个登录态。</string>
+    <string name="login_clear_failed">清除登录态失败。</string>
+    <string name="login_note">YouTube 无需登录。</string>
+</resources>

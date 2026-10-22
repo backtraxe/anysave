@@ -256,6 +256,31 @@ MainActivity.startExtraction(url)
 - `DirectExtractor` 是通用扩展点：以后若还有「只能靠专用协议」的站点，可独立接一层，
   不污染 SiteReader 的观察模型。
 
+## 登录与会话（M9）
+
+```
+Settings「登录」卡片（SessionManager.SITES）
+   │ startActivity(MainActivity, EXTRA_OPEN_URL, CLEAR_TOP|SINGLE_TOP)
+   ▼
+MainActivity.handleExternalOpenUrl(url)
+   ├─ WebView UA 临时切到桌面 Chrome UA（站点才会给扫码登录，而不是“下载 APP”）
+   ├─ loadUrl(url)；状态栏提示“已打开登录页…”
+   └─ 用户扫码登录 → Cookie 写入系统 WebView 的 CookieStore
+        （应用私有目录 app_webview/Default/Cookies，应用不读不写不导出）
+```
+
+- 登录态就是 WebView Cookie：后续提取页面、下载时（需要的话）都在进程内共享，
+  `MediaSaver` 只通过 `CookieManager.getCookie(url)` 读取，不落盘。
+- 提取时 `PageExtractor` 会按 reader 恢复 UA（B 站桌面 UA / 其余默认 UA），
+  登录页的桌面 UA 只影响登录页本身。
+- 「清除所有登录态」：`CookieManager.removeAllCookies()` + `flush()`，并
+  `WebStorage.deleteAllData()`（部分站点把 token 放在 localStorage）。这是全局清理，
+  会一并清掉微博访客 Cookie 等。
+- 不提供「已登录/未登录」状态：HttpOnly Cookie（如 SESSDATA）无法通过 CookieManager
+  枚举，判断会失真；以页面与提取结果为准。
+- 安全边界：release 关闭 WebView 调试、禁止明文、无 JS 接口；debug 包的 CDP 仅用于测试，
+  不可外发。YouTube 不需要登录；微博公开内容免登录。
+
 ## reader 热更新（M7）
 
 ```
