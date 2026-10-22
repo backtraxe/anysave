@@ -12,7 +12,7 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 
 ## 状态
 
-**M11 登录态检测**（可编译、可运行、已端到端验证）。完整链路：
+**M11.2 真实登录态验证 + 抖音重定向修复**（可编译、可运行、已端到端验证）。完整链路：
 
 - 输入链接 → WebView 打开页面
 - 文档开始时注入响应监听（`app/src/main/res/raw/hook.js`），命中时连同响应体一起留下
@@ -70,7 +70,8 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 | YouTube 视频 | 6.5 s 解析出 1 项（“Me at the zoo”，19 s）；保存时下载 AVC 视频 + M4A 音频，合流为 746,914 B MP4（h264 320×240 + AAC 44.1 kHz，19.06 s），ffprobe/解码通过 |
 | 微博图文（3 图） | 3.2 s 解析出 3 项（作者杨伊琳10）；保存 3 张原图 229,606 / 256,742 / 221,566 B，MediaStore 尺寸正确、无 pending |
 | 微博视频（1 条） | 2.0 s 解析出 1 项；保存 1,896,528 B MP4（h264 720×1280 + AAC 44.1 kHz 立体声，13.72 s） |
-| 登录态检测 | 清空会话后三站均显示「未登录」；注入抖音真实会话后 `Douyin: Logged in · 背影`，B站/小红书保持未登录；再次清除后恢复未登录；探测不输出 Cookie 值 |
+| 登录态检测 | 清空会话后三站均显示「未登录」；用真实浏览器会话后 `Douyin: Logged in · 背影` / `Bilibili: Logged in · Backtraxe` / `Xiaohongshu: Logged in · 山水之间`；清除后恢复未登录；探测不输出 Cookie 值 |
+| 登录专属能力 | B 站登录后同一视频从 480P/26.3 MB 提升到 **1080P/75.2 MB**（h264 1920×1080 + AAC 212.31 s）；小红书真实笔记 6 项；抖音登录后重定向到 `m.douyin.com/share` 的问题已修复（桌面 UA + origin hook 别名） |
 | AcFun 图文（3 图） | 2.0 s 解析出 3 项（作者 AcFun活动）；保存 1,658,046 B PNG + 2,256,625 B PNG + 2,642,498 B JPEG（8000×4500 封面，容器嗅探把 .png 纠正为 .jpg），MediaStore 三行 pending 0 |
 | 登录/会话 | 设置页登录卡片打开桌面版页面：抖音标题「抖音-记录美好生活」、B 站「哔哩哔哩…」、小红书直接跳 `/login` 且有扫码入口；注入的会话 Cookie 重启应用后仍在（3/3），清除后 3 站 Cookie 行数归 0 |
 | 登录后回归 | 带 Cookie 的抖音提取 `Parsed 1 item(s) in 8179 ms`；B 站未登录仍解析 480P（`Parsed 1 item(s) in 5764 ms`）；无 Cookie 的抖音超时提示改为「…请在设置 → 登录中扫码登录」 |

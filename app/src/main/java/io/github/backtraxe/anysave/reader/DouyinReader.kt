@@ -1,5 +1,6 @@
 package io.github.backtraxe.anysave.reader
 
+import io.github.backtraxe.anysave.model.DESKTOP_CHROME_UA
 import io.github.backtraxe.anysave.model.PostMedia
 
 /**
@@ -22,6 +23,10 @@ object DouyinReader : SiteReader {
     override val id = "douyin"
     override val origin = "https://www.douyin.com"
     override val responsePatterns = listOf("/aweme/v1/web/aweme/detail/")
+
+    /** Logged-in douyin redirects mobile UAs to m.douyin.com/share; desktop stays www. */
+    override val pageUserAgent: String = DESKTOP_CHROME_UA
+    override val originAliases: List<String> = listOf("https://m.douyin.com")
 
     override fun matches(url: String): Boolean =
         url.contains("www.douyin.com") || url.contains("://douyin.com")

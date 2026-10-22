@@ -81,16 +81,21 @@ class PageExtractor(
         activePatterns = ReaderOverrides.patterns(reader)
         val patternsJson = JSONArray(activePatterns).toString()
         val script = "window.__anysavePatterns=$patternsJson;\n$hookScript"
-        val previous = installedHooks[origin]
-        if (previous == null || previous.patterns != activePatterns || previous.script != script) {
+        // Readers may redirect to a different origin (e.g. douyin.com -> m.douyin.com);
+        // install the hook for every origin the reader may land on.
+        for (hookOrigin in (listOf(origin) + reader.originAliases).distinct()) {
+            val previous = installedHooks[hookOrigin]
+            if (previous != null && previous.patterns == activePatterns && previous.script == script) {
+                continue
+            }
             // A reader-pack update can change the patterns/script: replace the
             // document-start hook so the next navigation uses the new pack.
             if (previous != null) {
                 runCatching { previous.handler.remove() }
             }
-            val handler = WebViewCompat.addDocumentStartJavaScript(webView, script, setOf(origin))
-            installedHooks[origin] = InstalledHook(handler, activePatterns, script)
-            Log.i(TAG, "reader=${reader.id} hook installed for $origin (hot=${previous != null})")
+            val handler = WebViewCompat.addDocumentStartJavaScript(webView, script, setOf(hookOrigin))
+            installedHooks[hookOrigin] = InstalledHook(handler, activePatterns, script)
+            Log.i(TAG, "reader=${reader.id} hook installed for $hookOrigin (hot=${previous != null})")
         }
 
         generation += 1

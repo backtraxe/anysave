@@ -528,3 +528,38 @@ Login 卡片的 `sessionsStatus`：
 - B 站/小红书真实登录后的正例（环境里只有抖音的有效 Cookie 文件；其余两组仅验证未登录路径与解析单测）
 - 真实扫码登录后的即时状态刷新（需要人工扫码；已验证注入会话后的检测）
 - 登录过期后的状态自动降级（当前重新打开设置即重新探测）
+
+## 实验 X：用真实浏览器登录态验证（M11.2，kimi-webbridge）
+
+用户的本地 Chrome 已登录 B 站/小红书/抖音。通过本机 **kimi-webbridge**（`~/.kimi-code/skills/kimi-webbridge`，
+daemon `127.0.0.1:10086`）在用户真实浏览器里读取会话，再用 debug CDP 注入模拟器 App，
+验证登录态与登录专属能力（不打印任何 Cookie 值）：
+
+| 项目 | 结果 |
+|---|---|
+| B 站会话 | `nav` 返回 `isLogin:true, uname:"Backtraxe"`；36 条 Cookie 注入 App |
+| 小红书会话 | `__INITIAL_STATE__.user.loggedIn=true, nickname:"山水之间"`；18 条 Cookie 注入 App |
+| 抖音会话 | 62 条 Cookie 注入 App；`user/self` 标题识别为「背影」 |
+| App 登录态显示 | `Douyin: Logged in · 背影` / `Bilibili: Logged in · Backtraxe` / `Xiaohongshu: Logged in · 山水之间` |
+| B 站 1080P（登录专属） | 登录后页面 playinfo `quality:80`、dash 含 `80:1920x1080:codec7`；App 提取 payload 73,032 字符（匿名时 42,589），保存 `bilibili_BV1GJ411x7h7_video (1).mp4` **75,195,677 B**（视频 69,759,161 B + 音频 5,408,198 B），ffprobe h264 **1920×1080** + AAC 212.31 s；匿名时同视频仅 480P/26.3 MB |
+| 小红书真实笔记 | 用登录态浏览器得到的带 `xsec_token` 链接提取：`items=6`、作者 Ragdoll（2.1 s），缩略图正常 |
+| 抖音真实视频 | 登录态下 mobile UA 会 302 到 `m.douyin.com/share/video/…`，原 hook 只装在 www 导致超时；修复：抖音页面改用桌面 UA + 同时为 `m.douyin.com` 安装 document-start hook（SiteReader.originAliases）。修复后 `captured 3 response(s) in 5486ms`、`parsed aweme=… author=背影 videos=1`，面板正常 |
+| 工具链刷新 | 用真实会话刷新了 `downloader-bot/cookies/{bilibili,xiaohongshu,douyin}.txt`，`cookie_check` 三站全部通过（抖音 UIFID/ttwid/sessionid、小红书 a1/web_session 齐全） |
+
+## 实现结论（M11.2 追加）
+
+43. 真实浏览器会话是验证「登录专属行为」的关键：同一视频匿名 480P / 登录 1080P，App 侧只需
+    WebView 里有会话，reader 无需改动即可拿到更高档 playinfo。
+44. 登录态会改变站点的 UA 行为：抖音在登录后把移动 UA 重定向到 `m.douyin.com/share`，
+    页面数据不再出现在 www 的 detail XHR 里；因此抖音 reader 固定桌面 UA（与 B 站同理），
+    并通过 originAliases 给重定向目标也装 hook，两条路径都覆盖。
+45. kimi-webbridge 的价值是「用户真实登录 + 真实页面」：既能在浏览器侧确认 isLogin/画质档位，
+    又能把会话注入模拟器做端到端，无需用户反复扫码。
+46. 登录态检测的三站信号（实验 W）在真实会话下全部命中；之前仅有抖音正例，现在 B 站/小红书
+    正例也补齐（Backtraxe / 山水之间）。
+
+## 未验证项（M11.2 追加）
+
+- 抖音 1080P/更高画质（登录后 playinfo 档位未逐档核对，当前保存的是解析器选出的最高 AVC 档）
+- 小红书登录态下的视频笔记/图集混合形态
+- 真实扫码登录路径（本次用已登录浏览器的会话注入代替）

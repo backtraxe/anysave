@@ -19,6 +19,9 @@ interface SiteReader {
     /** URL substrings that identify useful responses. */
     val responsePatterns: List<String>
 
+    /** Extra origins that need the document-start hook (e.g. redirect targets). */
+    val originAliases: List<String> get() = emptyList()
+
     /** Whether this reader handles the given page URL. */
     fun matches(url: String): Boolean
 
