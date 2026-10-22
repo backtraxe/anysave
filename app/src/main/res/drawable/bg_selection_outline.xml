@@ -9,7 +9,7 @@
             <corners android:radius="13dp" />
             <stroke
                 android:width="2dp"
-                android:color="@color/brand" />
+                android:color="@color/preview_accent" />
         </shape>
     </item>
 </layer-list>

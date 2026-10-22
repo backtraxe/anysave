@@ -1,6 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="brand">#FF5A36</color>
+    <!-- M23 palette: deep teal primary, coral selection accent, warm cream neutrals. -->
+    <color name="brand">#0F766E</color>
+    <color name="accent">#F9735B</color>
     <color name="surface">#FFFFFF</color>
     <color name="text_primary">#111111</color>
     <color name="text_secondary">#6B6B6B</color>

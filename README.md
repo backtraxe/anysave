@@ -16,7 +16,7 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 
 ## 状态
 
-**M22 全新品牌图标（紫 / 奶油 / 薄荷）**（可编译、可运行、已端到端验证）。完整链路：
+**M23 青绿品牌配色（图标 + 应用内统一）**（可编译、可运行、已端到端验证）。完整链路：
 
 - 输入链接 → WebView 打开页面
 - 文档开始时注入响应监听（`app/src/main/res/raw/hook.js`），命中时连同响应体一起留下
@@ -38,8 +38,9 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 - **登录/会话（M9）**：设置页「登录」用**站点桌面版登录页**（App 内 WebView、
   手机扫码），登录态就是 WebView 的 Cookie，只存在应用私有目录；可一键清除
   所有站点登录态。抖音提取必须登录，B 站登录后可拿更高清晰度
-- **品牌图标（M22）**：深紫渐变背景 + 奶油色书签（内嵌播放三角负空间）+ 薄荷绿点缀，
-  双层叠片增加层次；自适应图标 + Android 13 主题图标，实机 launcher 验证
+- **统一配色（M23）**：青绿主色 `#0F766E` + 珊瑚强调 `#F9735B` + 奶油画布 `#F6F4EF`；
+  图标（青绿渐变 + 奶油媒体卡片 + 珊瑚点缀）与 App 内 Extract/Save 按钮、进度、筛选 pill、
+  选中边框/勾选 chip 全部使用同一套色，界面实机截图见下
 - **上传失败清单/重试（M20）**：上传失败会记录**具体文件名**，完成面板显示
   `N upload(s) failed · Retry`，点开可看失败清单并只重传失败文件（已保存的不会重新下载）
 - **发布文档（M20）**：README 增加 CI/Release/License badge 与截图索引，新增
@@ -312,6 +313,7 @@ reader pack JSON，替换内置 reader 的**页面提取脚本**与**响应匹�
 | 预览/保存 | 上传/登录 |
 |---|---|
 | [抖音预览](docs/images/m0-douyin.png) · [小红书预览](docs/images/m4-xhs.png) · [小红书视频](docs/images/m15-xhs-desktop.png) · [B 站视频](docs/images/m5-bili.png) | [Telegram 设置](docs/images/m3-settings.png) · [通知](docs/images/m2-notification.png) · [登录卡片](docs/images/m9-settings-login.png) · [登录态检测](docs/images/m11-login-all-logged-in.png) |
+| [主界面（M23）](docs/images/m23-main.png) · [选中态（M23）](docs/images/m23-preview-selected.png) · [设置（M23）](docs/images/m23-settings.png) |
 | [B 站画质](docs/images/m14-quality.png) · [失败重试](docs/images/m18-retry-failed.png) · [重试成功](docs/images/m18-retry-done.png) | [YouTube](docs/images/m8-youtube.png) · [微博图文](docs/images/m8-weibo.png) · [微博视频](docs/images/m8-weibo-video.png) |
 
 商店文案/权限/隐私说明见 [docs/store-listing.md](docs/store-listing.md)。
@@ -339,7 +341,8 @@ reader pack JSON，替换内置 reader 的**页面提取脚本**与**响应匹�
 - **M18** 失败项重试 + Telegram 上传兜底 + 视频流细化 ✅
 - **M19** 通知重试入口 + Telegram 分组 mock 端到端 ✅
 - **M20** 上传失败清单/重试 + 商店发布文档 ✅
-- **M21/M22** 应用图标：初版橙/箭头 → 新版紫/奶油书签+播放三角 ✅
+- **M21/M22** 应用图标：初版橙/箭头 → 紫/奶油书签+播放三角 ✅
+- **M23** 青绿配色 + 图标/应用内色彩统一 ✅
 
 ## 已知限制
 

@@ -1,26 +1,26 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Save-as-media mark: a cream bookmark with a play cutout, plus a soft
-     offset backing layer and a mint spark. Violet + cream + mint palette. -->
+<!-- Media stack mark: two layered cards with a play cutout and a coral spark.
+     Teal + cream + coral, matching the in-app palette. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="108dp"
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
 
-    <!-- Depth: same bookmark silhouette offset down/right at low opacity -->
+    <!-- Back card: offset, translucent cream -->
     <path
-        android:fillColor="#26FFF6E9"
-        android:pathData="M43,40 A6,6 0 0 1 49,34 H69 A6,6 0 0 1 75,40 V82 L59,68 L43,82 Z" />
+        android:fillColor="#59FFF6E9"
+        android:pathData="M39,28 H57 A9,9 0 0 1 66,37 V55 A9,9 0 0 1 57,64 H39 A9,9 0 0 1 30,55 V37 A9,9 0 0 1 39,28 Z" />
 
-    <!-- Main bookmark; the play triangle is a true negative-space cutout -->
+    <!-- Front card: cream with a negative-space play triangle -->
     <path
         android:fillColor="#FFF6E9"
         android:fillType="evenOdd"
-        android:pathData="M38,36 A6,6 0 0 1 44,30 H64 A6,6 0 0 1 70,36 V78 L54,64 L38,78 Z
-                          M48,42 V56 L60,49 Z" />
+        android:pathData="M49,40 H67 A9,9 0 0 1 76,49 V67 A9,9 0 0 1 67,76 H49 A9,9 0 0 1 40,67 V49 A9,9 0 0 1 49,40 Z
+                          M53,51 V65 L66,58 Z" />
 
-    <!-- Mint accent: small spark dot near the bookmark's top-right corner -->
+    <!-- Coral spark (echoes the selection accent used in the app UI) -->
     <path
-        android:fillColor="#B8FF5C"
-        android:pathData="M76,30 m-4,0 a4,4 0 1 0 8,0 a4,4 0 1 0 -8,0" />
+        android:fillColor="#F9735B"
+        android:pathData="M74,34 m-4,0 a4,4 0 1 0 8,0 a4,4 0 1 0 -8,0" />
 </vector>

@@ -81,8 +81,14 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_save_button"
+                    android:fontFamily="sans-serif-medium"
+                    android:minHeight="44dp"
+                    android:paddingStart="20dp"
+                    android:paddingEnd="20dp"
                     android:text="@string/extract"
-                    android:textAllCaps="false" />
+                    android:textAllCaps="false"
+                    android:textColor="@android:color/white" />
             </LinearLayout>
 
             <TextView

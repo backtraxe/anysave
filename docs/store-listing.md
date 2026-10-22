@@ -15,7 +15,7 @@
 | 语言 | 简体中文 / English |
 | 价格 | 免费、无广告、无内购 |
 | 许可证 | GPL-3.0（含 NewPipeExtractor，GPL-3.0） |
-| 应用图标 | `docs/images/app-icon.png`（深紫渐变 + 奶油书签内嵌播放三角 + 薄荷点缀；自适应 + monochrome） |
+| 应用图标 | `docs/images/app-icon.png`（青绿渐变 + 奶油媒体卡片双叠 + 珊瑚点缀；自适应 + monochrome） |
 | 源码 | https://github.com/backtraxe/anysave |
 | 下载 | https://github.com/backtraxe/anysave/releases |
 
@@ -81,17 +81,34 @@ Telegram 上传是可选功能，由用户配置自己的 Bot Token 与 Chat ID�
 ## 图标
 
 - 自适应图标（API 26+）：`res/mipmap-anydpi-v26/ic_launcher.xml`（+ `ic_launcher_round.xml`）
-- 背景：`res/drawable/ic_launcher_background.xml`（`#8B7CFF → #5B4BE0 → #2E2380` 深紫对角渐变）
-- 前景：`res/drawable/ic_launcher_foreground.xml`（奶油书签 `#FFF6E9` + 播放三角负空间 +
-  低透明度偏移叠片 + 薄荷绿 `#B8FF5C` 点缀，全部落在 66dp 安全区）
+- 背景：`res/drawable/ic_launcher_background.xml`（`#2DD4BF → #0F766E → #0B4F4A` 青绿对角渐变）
+- 前景：`res/drawable/ic_launcher_foreground.xml`（奶油 `#FFF6E9` 双卡片叠层 + 播放三角负空间 +
+  珊瑚 `#F9735B` 点缀，全部落在 66dp 安全区）
 - 主题图标：`res/drawable/ic_launcher_monochrome.xml`
 - 预览：`docs/images/app-icon.png`
-- 语义：书签 = 收藏/保存，播放三角 = 媒体内容
+- 语义：媒体卡片 = 图片/视频，播放三角 = 可播放内容，双叠 = 批量收藏
+
+## 色彩系统（与图标一致）
+
+| Token | 值 | 用途 |
+|---|---|---|
+| brand | `#0F766E` | 主按钮（Extract/Save）、进度条、选中 pill 文字、链接 |
+| brand_pressed | `#0B5F58` | 主按钮按下 |
+| accent | `#F9735B` | 选中边框 + 勾选 chip（与图标珊瑚点缀一致） |
+| accent_pressed | `#E05A44` | 选中态按下 |
+| canvas | `#F6F4EF` | 预览/设置奶油画布 |
+| surface | `#FFFFFF` | 卡片/输入框 |
+| brand_tint | `#1A0F766E` | 次级按钮/筛选选中底 |
+| text_secondary | `#5F5A50` | 次级文字 |
+| danger | `#A8402C` | 保存/上传失败 |
 
 ## 截图清单
 
 | 截图 | 文件 | 建议文案 |
 |---|---|---|
+| 主界面（M23） | `docs/images/m23-main.png` | 青绿主按钮，粘贴即用 |
+| 选中态（M23） | `docs/images/m23-preview-selected.png` | 珊瑚选中边框/勾选 |
+| 设置（M23） | `docs/images/m23-settings.png` | 统一青绿设置界面 |
 | 抖音预览 | `docs/images/m0-douyin.png` | 粘贴链接，先预览再保存 |
 | 小红书图文 | `docs/images/m4-xhs.png` | 图文筛选与多选 |
 | B 站视频 | `docs/images/m5-bili.png` | DASH 合流保存为单 MP4 |
@@ -107,6 +124,7 @@ Telegram 上传是可选功能，由用户配置自己的 Bot Token 与 Chat ID�
 
 | 版本 | 内容 |
 |---|---|
+| 0.23.0 | 青绿品牌配色；图标与 App 内颜色统一（青绿/珊瑚/奶油） |
 | 0.22.0 | 品牌图标重设计（深紫/奶油/薄荷，书签+播放） |
 | 0.21.0 | 首版自适应图标（橙/下载箭头） |
 | 0.20.0 | 上传失败清单/重试、M18/M19 收尾、商店文档 |
