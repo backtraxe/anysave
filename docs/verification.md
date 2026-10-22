@@ -809,3 +809,24 @@ daemon `127.0.0.1:10086`）在用户真实浏览器里读取会话，再用 debu
 
 - 商店渠道实际上架（本文档为资料准备，未提交任何商店）
 - 上传重试在 App 进程被杀后的行为（失败清单在内存，重启后不可重试）
+
+## 实验 AH：小红书 xhslink 短链（M27）
+
+| 项 | 结果 |
+|---|---|
+| URL 识别 | `xhslink.cn/a/abc` / `http://xhslink.com/a/abc` 均映射到 `XiaohongshuReader`（单测） |
+| hook 目标 | 日志 `reader=xiaohongshu hook installed for https://xhslink.cn` 且同时安装 `https://www.xiaohongshu.com`（短链 307 后的目标） |
+| 输入归一 | 粘贴裸域 `xhslink.cn/a/abc` → 输入框变为 `https://xhslink.cn/a/abc`，状态进入 `Extracting…`（不再报 No reader/Invalid URL） |
+| 分享文案 | 单测覆盖「看看这个笔记 https://xhslink.cn/m/abc，复制…」→ 正确取 URL 并去掉中文标点 |
+| 限制 | 没有拿到有效分享码做完整成功链路；无效码会 404/跳首页并按超时处理，需用户提供一条真实短链复测 |
+
+## 实现结论（M27 追加）
+
+76. 短链要同时解决两件事：**入口识别**（host 白名单）与**跳转后 hook 安装**
+    （originAliases），只改匹配会得到「能打开但抓不到数据」。
+77. 分享文案/裸域名是短链最常见的粘贴形态；先做 URL 提取与归一化，比要求用户手工整理更可靠。
+
+## 未验证项（M27 追加）
+
+- 有效 xhslink 分享码的完整成功下载（待真实链接复测）
+- 短链跳转到非 www 域名（如 m.xiaohongshu.com）的情况（当前按桌面 UA 预期落 www）

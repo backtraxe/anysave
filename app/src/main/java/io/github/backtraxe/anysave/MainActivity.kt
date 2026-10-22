@@ -34,6 +34,7 @@ import io.github.backtraxe.anysave.settings.BilibiliQuality
 import io.github.backtraxe.anysave.settings.BilibiliQualityConfig
 import io.github.backtraxe.anysave.session.SiteLoginCheck
 import io.github.backtraxe.anysave.reader.SiteReader
+import io.github.backtraxe.anysave.reader.UrlInput
 import io.github.backtraxe.anysave.ui.PreviewPanel
 
 /**
@@ -157,10 +158,17 @@ class MainActivity : Activity() {
     }
 
     private fun startExtraction() {
-        val url = urlInput.text?.toString()?.trim().orEmpty()
-        if (!url.startsWith("http://") && !url.startsWith("https://")) {
+        val pasted = urlInput.text?.toString()?.trim().orEmpty()
+        val url = UrlInput.extract(pasted)
+        if (url == null) {
             statusText.text = getString(R.string.status_invalid_url)
             return
+        }
+        // Normalize what the user sees to the URL we actually use (share text
+        // often wraps the link in a sentence).
+        if (url != pasted) {
+            urlInput.setText(url)
+            urlInput.setSelection(url.length)
         }
         val direct = DirectExtractors.forUrl(url)
         if (direct != null) {

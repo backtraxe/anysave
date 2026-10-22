@@ -125,6 +125,9 @@ SiteReader.forUrl(url)
 - **小红书（M17 视频）**：桌面视频笔记的 stream 是 `EF4/EF5/EF6/EF7` 数组（旧移动页是
   `h264`）；parser 收集所有 stream 数组，按 `width*height`、`videoBitrate`、质量等级挑选，
   取 `masterUrl` 并用 `backupUrls[0]` 作为 fallback；封面回退到 note.imageList[0].fileId。
+- **小红书短链**（M27）：`xhslink.cn` / `xhslink.com` 由 `XiaohongshuReader.matches`
+  识别；`originAliases` 额外包含 `https://www.xiaohongshu.com`，保证 307 跳转后的笔记页
+  也装上了 document-start hook。`UrlInput` 负责从分享文案中提取 URL、给裸域名补 https。
 - **小红书**（M15）：笔记页固定桌面 UA（与 M9 登录页一致）。移动页在风控压力下会跳
   `/404/sec_*`，桌面页仍返回 `__INITIAL_STATE__.note.noteDetailMap[<id>].note`，
   现有 parser 直接兼容；图片/视频 CDN 不变。

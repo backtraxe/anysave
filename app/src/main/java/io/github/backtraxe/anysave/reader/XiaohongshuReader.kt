@@ -26,7 +26,19 @@ object XiaohongshuReader : SiteReader {
      */
     override val pageUserAgent: String = DESKTOP_CHROME_UA
 
-    override fun matches(url: String): Boolean = url.contains("xiaohongshu.com")
+    /**
+     * Short share links (`xhslink.cn` / `xhslink.com`) 307-redirect to the
+     * canonical note URL on www.xiaohongshu.com, so they must map to this
+     * reader as well; the hook is installed for the redirect target below.
+     */
+    override val originAliases: List<String> = listOf("https://www.xiaohongshu.com")
+
+    override fun matches(url: String): Boolean {
+        val lower = url.lowercase()
+        return lower.contains("xiaohongshu.com") ||
+            lower.contains("xhslink.cn") ||
+            lower.contains("xhslink.com")
+    }
 
     override fun parse(body: String, sourceUrl: String): PostMedia? =
         XiaohongshuParser.parse(body, sourceUrl)
