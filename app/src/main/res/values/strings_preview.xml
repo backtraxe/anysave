@@ -63,6 +63,7 @@
         <item quantity="one">Uploaded %1$d item to Telegram</item>
         <item quantity="other">Uploaded %1$d items to Telegram</item>
     </plurals>
+    <string name="preview_upload_failed_retry">%1$d upload(s) failed · Retry</string>
     <string name="preview_upload_failed">Telegram upload failed for %1$d</string>
 
     <!-- Full-screen viewer -->

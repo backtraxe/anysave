@@ -785,3 +785,27 @@ daemon `127.0.0.1:10086`）在用户真实浏览器里读取会话，再用 debu
 
 - 真机点击通知按钮的 UI 路径（已用 dumpsys 校验 action/PendingIntent，服务路径与面板共享）
 - 含 EF5/EF6/EF7 非空档位的真实笔记（本轮 4 条样本均只有 EF4）
+
+## 实验 AG：上传失败清单 + 只重传失败文件（M20）
+
+| 步骤 | 结果 |
+|---|---|
+| 故障注入 | mock Bot：首组 400 + 所有单张 `sendPhoto` 400 → App 日志 `uploaded=6 failed=10` |
+| 完成面板 | `Telegram upload failed for 10` → 新版显示 `10 upload(s) failed · Retry`（可点击） |
+| 失败清单 | 点开后对话框标题 `10 failed upload(s)`，正文列出 10 个具体文件名（`xiaohongshu_…_01.jpg` … `_11.jpg`，按失败实际顺序） |
+| 只重传失败项 | mock 切到成功模式后点「RETRY UPLOAD」→ 面板变为 `Uploaded 10 items to Telegram`；已成功的 6 张没有重复上传（mock 新增请求仅针对失败文件） |
+| 清理 | 删除 mock prefs、停止 mock server、移除 adb reverse |
+
+## 实现结论（M20 追加）
+
+73. 「上传失败」需要保留到文件粒度：数量不足以让用户判断哪张失败，清单 + 只重传失败项
+    才能避免重复上传与重复下载。
+74. 上传重试直接复用已保存的 MediaStore 条目（不重新走解析/下载），状态仍通过
+    SaveStateBus 驱动面板与通知。
+75. 发布资料（商店文案/权限/隐私/GPL/截图索引/检查清单）应作为仓库文档维护，
+    与代码和 Release 流程一起 review。
+
+## 未验证项（M20 追加）
+
+- 商店渠道实际上架（本文档为资料准备，未提交任何商店）
+- 上传重试在 App 进程被杀后的行为（失败清单在内存，重启后不可重试）

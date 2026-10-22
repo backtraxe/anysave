@@ -451,3 +451,15 @@ SaveService.finishRun 有失败项 → buildFinishedNotification
 ```
 
 通知正文同时显示 `N saved, M failed`；action 与面板按钮走同一重试逻辑。
+
+## 上传失败清单与重试（M20）
+
+```
+TelegramClient.uploadMedia → UploadSummary.failedNames（最终仍失败的文件名）
+   → SaveService 记录 lastUploadPost / lastUploadEntries / failedNames
+   → Finished.uploadRetryable
+   → 面板「N upload(s) failed · Retry」→ 对话框列出文件名
+   → retryLastUpload(context)：只把失败文件重新上传（不重新下载/保存）
+```
+
+失败清单仅保存在进程内；App 被杀后不可重试。

@@ -59,6 +59,7 @@
     <plurals name="preview_uploaded">
         <item quantity="other">已上传 %1$d 项到 Telegram</item>
     </plurals>
+    <string name="preview_upload_failed_retry">%1$d 个上传失败 · 重试</string>
     <string name="preview_upload_failed">%1$d 项 Telegram 上传失败</string>
 
     <!-- 全屏预览 -->

@@ -51,6 +51,9 @@ class PreviewPanel(
 
         /** Re-run the items that failed in the last save. */
         fun onRetryFailed() {}
+
+        /** Retry the gallery files whose Telegram upload failed. */
+        fun onRetryUpload() {}
     }
 
     private enum class Filter { ALL, IMAGES, VIDEOS }
@@ -560,9 +563,13 @@ class PreviewPanel(
             }
             if (state.uploadFailed > 0) {
                 telegramUploadFailedText.visibility = View.VISIBLE
-                telegramUploadFailedText.text = activity.getString(
-                    R.string.preview_upload_failed,
-                    state.uploadFailed,
+                telegramUploadFailedText.text = if (state.uploadRetryable) {
+                    activity.getString(R.string.preview_upload_failed_retry, state.uploadFailed)
+                } else {
+                    activity.getString(R.string.preview_upload_failed, state.uploadFailed)
+                }
+                telegramUploadFailedText.setOnClickListener(
+                    if (state.uploadRetryable) { { saveActions?.onRetryUpload() } } else { null },
                 )
             }
             if (!state.firstUri.isNullOrBlank()) {

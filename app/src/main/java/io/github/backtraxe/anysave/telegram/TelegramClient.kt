@@ -36,6 +36,7 @@ class TelegramClient(private val baseUrl: String) {
         val uploaded: Int,
         val failed: Int,
         val lastError: String?,
+        val failedNames: List<String> = emptyList(),
     ) {
         val ok: Boolean get() = failed == 0 && uploaded > 0
     }
@@ -85,6 +86,8 @@ class TelegramClient(private val baseUrl: String) {
         var uploaded = 0
         var failed = oversized
         var lastError: String? = if (oversized > 0) "size limit" else null
+        val failedNames = LinkedHashSet<String>()
+        attachments.filter { !valid.contains(it) }.forEach { failedNames += it.fileName }
         var captionPending = caption.isNotBlank()
         val retryQueue = ArrayList<UploadAttachment>()
 
@@ -118,6 +121,7 @@ class TelegramClient(private val baseUrl: String) {
                     } catch (itemError: Throwable) {
                         lastError = itemError.message ?: itemError.javaClass.simpleName
                         retryQueue += attachment
+                        failedNames += attachment.fileName
                     }
                 }
                 uploaded += groupUploaded
@@ -133,6 +137,7 @@ class TelegramClient(private val baseUrl: String) {
                     sendSingle(token, chatId, attachment, "")
                     uploaded += 1
                     failed -= 1
+                    failedNames -= attachment.fileName
                     captionPending = false
                 } catch (t: Throwable) {
                     lastError = t.message ?: t.javaClass.simpleName
@@ -140,7 +145,12 @@ class TelegramClient(private val baseUrl: String) {
             }
             onProgress(uploaded, failed)
         }
-        return UploadSummary(uploaded = uploaded, failed = failed, lastError = lastError)
+        return UploadSummary(
+            uploaded = uploaded,
+            failed = failed,
+            lastError = lastError,
+            failedNames = failedNames.toList(),
+        )
     }
 
     private fun sendSingle(

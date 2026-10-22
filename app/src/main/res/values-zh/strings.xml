@@ -38,6 +38,9 @@
     <string name="login_state_line">%1$s：%2$s</string>
     <string name="status_retrying_failed">正在重试失败项…</string>
     <string name="status_nothing_to_retry">没有可重试的项目。</string>
+    <string name="upload_retry_title">%1$d 个上传失败</string>
+    <string name="upload_retry_action">重试上传</string>
+    <string name="status_retrying_upload">正在重试失败上传…</string>
     <string name="status_saving">正在保存 %1$d 项到相册…</string>
     <string name="status_saved">已保存 %1$d 项到 AnySave 相册</string>
     <string name="album_open_failed">没有可打开相册的应用。</string>

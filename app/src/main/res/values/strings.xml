@@ -39,6 +39,9 @@
     <string name="login_state_line">%1$s: %2$s</string>
     <string name="status_retrying_failed">Retrying failed items…</string>
     <string name="status_nothing_to_retry">Nothing to retry.</string>
+    <string name="upload_retry_title">%1$d failed upload(s)</string>
+    <string name="upload_retry_action">Retry upload</string>
+    <string name="status_retrying_upload">Retrying failed uploads…</string>
     <string name="status_saving">Saving %1$d item(s) to the gallery…</string>
     <string name="status_saved">%1$d item(s) saved to the AnySave album</string>
     <string name="album_open_failed">No gallery app available.</string>

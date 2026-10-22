@@ -52,6 +52,8 @@ sealed interface SaveState {
         val uploadFailed: Int = 0,
         /** True when the failed items are still known and can be re-saved. */
         val retryable: Boolean = false,
+        /** True when the upload failures are known and can be retried. */
+        val uploadRetryable: Boolean = false,
     ) : SaveState {
         val telegramAttempted: Boolean get() = uploaded > 0 || uploadFailed > 0
     }

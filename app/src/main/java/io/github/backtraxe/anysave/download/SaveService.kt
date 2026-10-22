@@ -62,6 +62,10 @@ class SaveService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (intent?.getBooleanExtra(EXTRA_RETRY_UPLOAD, false) == true) {
+            if (!beginUploadRetry()) stopSelf()
+            return START_NOT_STICKY
+        }
         if (intent?.getBooleanExtra(EXTRA_RETRY, false) == true) {
             // Notification action: re-run the failed items from the last run.
             val started = retryLastFailed(this)
@@ -202,12 +206,18 @@ class SaveService : Service() {
             )
         }
         Log.i(TAG, "telegram: finished uploaded=${summary.uploaded} failed=${summary.failed}")
+        lastUploadPost = post
+        lastUploadEntries = entries
+        lastUploadFailedNames = summary.failedNames
+        lastSavedCount = saved
+        lastFailedCount = failed
         handler.post {
             finishRun(
                 saved = saved,
                 failed = failed,
                 uploaded = summary.uploaded,
                 uploadFailed = summary.failed,
+                uploadRetryable = summary.failedNames.isNotEmpty(),
             )
         }
     }
@@ -232,9 +242,36 @@ class SaveService : Service() {
         }
     }
 
+    private fun beginUploadRetry(): Boolean {
+        val post = lastUploadPost ?: return false
+        val config = TelegramSettings.load(this)
+        if (!config.isConfigured) return false
+        val names = lastUploadFailedNames
+        if (names.isEmpty()) return false
+        val entries = lastUploadEntries.filter { entry ->
+            MediaNaming.target(post, entry.item).displayName in names
+        }
+        if (entries.isEmpty()) return false
+        running = true
+        total = entries.size
+        SaveStateBus.publish(SaveState.Uploading(total = entries.size, uploaded = 0, failed = 0))
+        startForeground(NOTIFICATION_ID, buildUploadNotification(0, entries.size))
+        Thread(
+            { uploadToTelegram(post, config, entries, lastSavedCount, lastFailedCount) },
+            "anysave-telegram-retry",
+        ).start()
+        return true
+    }
+
     // ----------------------------------------------------------------- finishing
 
-    private fun finishRun(saved: Int, failed: Int, uploaded: Int, uploadFailed: Int) {
+    private fun finishRun(
+        saved: Int,
+        failed: Int,
+        uploaded: Int,
+        uploadFailed: Int,
+        uploadRetryable: Boolean = false,
+    ) {
         running = false
         SaveStateBus.publish(
             SaveState.Finished(
@@ -246,6 +283,7 @@ class SaveService : Service() {
                 uploaded = uploaded,
                 uploadFailed = uploadFailed,
                 retryable = failed > 0 && synchronized(failedItems) { failedItems.isNotEmpty() },
+                uploadRetryable = uploadRetryable,
             ),
         )
         notificationManager()?.notify(
@@ -377,11 +415,35 @@ class SaveService : Service() {
         private const val NOTIFICATION_ID = 0x51
         private const val EXTRA_JOB = "io.github.backtraxe.anysave.extra.SAVE_JOB"
         private const val EXTRA_RETRY = "io.github.backtraxe.anysave.extra.RETRY"
+        private const val EXTRA_RETRY_UPLOAD = "io.github.backtraxe.anysave.extra.RETRY_UPLOAD"
         private const val RETRY_REQUEST_CODE = 0x52
         private const val WORKERS = 3
 
         @Volatile
         private var lastPost: PostMedia? = null
+
+        @Volatile
+        private var lastUploadPost: PostMedia? = null
+        @Volatile
+        private var lastUploadEntries: List<SavedEntry> = emptyList()
+        @Volatile
+        private var lastUploadFailedNames: List<String> = emptyList()
+        @Volatile
+        private var lastSavedCount = 0
+        @Volatile
+        private var lastFailedCount = 0
+
+        /** File names whose upload failed in the last run. */
+        fun lastUploadFailureNames(): List<String> = lastUploadFailedNames.toList()
+
+        /** Retries only the failed uploads (files are already in the gallery). */
+        fun retryLastUpload(context: Context): Boolean {
+            if (lastUploadFailedNames.isEmpty()) return false
+            val intent = Intent(context, SaveService::class.java)
+                .putExtra(EXTRA_RETRY_UPLOAD, true)
+            context.startForegroundService(intent)
+            return true
+        }
 
         /** Items from the last run that failed; used by the finished-panel retry. */
         private val lastFailedItems = Collections.synchronizedList(ArrayList<MediaItem>())

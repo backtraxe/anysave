@@ -110,6 +110,8 @@ class MainActivity : Activity() {
             override fun onOpenAlbum() = openAlbum()
 
             override fun onRetryFailed() = retryFailedSave()
+
+            override fun onRetryUpload() = showUploadRetryDialog()
         })
         findViewById<Button>(R.id.extractButton).setOnClickListener { startExtraction() }
         findViewById<View>(R.id.settingsButton).setOnClickListener {
@@ -345,6 +347,26 @@ class MainActivity : Activity() {
         }
     }
 
+    private fun showUploadRetryDialog() {
+        val names = SaveService.lastUploadFailureNames()
+        if (names.isEmpty()) {
+            statusText.text = getString(R.string.status_nothing_to_retry)
+            return
+        }
+        val listed = names.take(MAX_UPLOAD_RETRY_NAMES).joinToString("\n")
+        val message = if (names.size > MAX_UPLOAD_RETRY_NAMES) "$listed\n…" else listed
+        android.app.AlertDialog.Builder(this)
+            .setTitle(getString(R.string.upload_retry_title, names.size))
+            .setMessage(message)
+            .setPositiveButton(R.string.upload_retry_action) { _, _ ->
+                if (SaveService.retryLastUpload(this)) {
+                    statusText.text = getString(R.string.status_retrying_upload)
+                }
+            }
+            .setNegativeButton(android.R.string.cancel, null)
+            .show()
+    }
+
     private fun retryFailedSave() {
         if (SaveService.retryLastFailed(this)) {
             statusText.text = getString(R.string.status_retrying_failed)
@@ -392,6 +414,7 @@ class MainActivity : Activity() {
     companion object {
         private const val TAG = "AnySave"
         private const val REQUEST_SAVE_PERMISSIONS = 41
+        private const val MAX_UPLOAD_RETRY_NAMES = 12
         const val EXTRA_OPEN_URL = "io.github.backtraxe.anysave.extra.OPEN_URL"
     }
 }

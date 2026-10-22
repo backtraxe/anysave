@@ -1,6 +1,8 @@
 # AnySave
 
 [![CI](https://github.com/backtraxe/anysave/actions/workflows/ci.yml/badge.svg)](https://github.com/backtraxe/anysave/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/backtraxe/anysave)](https://github.com/backtraxe/anysave/releases)
+[![License](https://img.shields.io/badge/license-GPL--3.0-blue)](LICENSE)
 
 > Pick, preview and keep media from any web page.
 
@@ -12,7 +14,7 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 
 ## 状态
 
-**M19 失败通知重试入口 + Telegram 分组端到端**（可编译、可运行、已端到端验证）。完整链路：
+**M20 上传失败清单/重试 + 发布文档**（可编译、可运行、已端到端验证）。完整链路：
 
 - 输入链接 → WebView 打开页面
 - 文档开始时注入响应监听（`app/src/main/res/raw/hook.js`），命中时连同响应体一起留下
@@ -34,6 +36,10 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 - **登录/会话（M9）**：设置页「登录」用**站点桌面版登录页**（App 内 WebView、
   手机扫码），登录态就是 WebView 的 Cookie，只存在应用私有目录；可一键清除
   所有站点登录态。抖音提取必须登录，B 站登录后可拿更高清晰度
+- **上传失败清单/重试（M20）**：上传失败会记录**具体文件名**，完成面板显示
+  `N upload(s) failed · Retry`，点开可看失败清单并只重传失败文件（已保存的不会重新下载）
+- **发布文档（M20）**：README 增加 CI/Release/License badge 与截图索引，新增
+  `docs/store-listing.md`（商店文案、权限说明、隐私声明、GPL 声明、版本历史）
 - **通知里直接重试（M19）**：保存有失败项时，完成通知带「Retry failed」按钮，
   不用打开 App 即可重跑失败项；通知文案同时显示 `N saved, M failed`
 - **Telegram 分组实测（M19）**：mock Bot 端到端验证 16 张图分两批（10 + 6）上传；
@@ -103,6 +109,7 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 | 微博图文（3 图） | 3.2 s 解析出 3 项（作者杨伊琳10）；保存 3 张原图 229,606 / 256,742 / 221,566 B，MediaStore 尺寸正确、无 pending |
 | 微博视频（1 条） | 2.0 s 解析出 1 项；保存 1,896,528 B MP4（h264 720×1280 + AAC 44.1 kHz 立体声，13.72 s） |
 | 登录态检测 | 清空会话后三站均显示「未登录」；用真实浏览器会话后 `Douyin: Logged in · 背影` / `Bilibili: Logged in · Backtraxe` / `Xiaohongshu: Logged in · 山水之间`；清除后恢复未登录；探测不输出 Cookie 值 |
+| 上传失败清单/重试 | mock 注入「组失败 + 单张始终失败」：面板显示 `10 upload(s) failed · Retry`，点开对话框列出 10 个失败文件名；切换 mock 后点「RETRY UPLOAD」→ 面板变为 `Uploaded 10 items to Telegram`，未重传成功的 6 张 |
 | Telegram 分组/兜底 | mock Bot：16 张图两批（10+6）全部成功；故障注入后日志 `group 1/2 failed → trying items individually`、`retrying 1 failed attachment(s) once`、`finished uploaded=16 failed=0`，mock 侧收到 13 个请求（1 组失败 + 10 单张 + 1 组成功 + 1 张重试） |
 | 失败通知重试 | 离线保存 3 张失败后：通知 `0 saved, 3 failed` + action「Retry failed」（PendingIntent startService）；面板「Retry 3 failed」实测恢复网络后保存成功 3/3 |
 | 视频流取样 | 通过真实浏览器取样 4 条小红书视频笔记：stream 均为 `EF4`（EF5/EF6/EF7 为空）；跨 key 选择由单测覆盖 |
@@ -296,6 +303,15 @@ reader pack JSON，替换内置 reader 的**页面提取脚本**与**响应匹�
 - release 只允许 https URL；debug 允许 http 便于本地联调
 - 清空 URL 再点「检查并更新」= 移除已应用的 pack
 
+## 界面截图
+
+| 预览/保存 | 上传/登录 |
+|---|---|
+| [抖音预览](docs/images/m0-douyin.png) · [小红书预览](docs/images/m4-xhs.png) · [小红书视频](docs/images/m15-xhs-desktop.png) · [B 站视频](docs/images/m5-bili.png) | [Telegram 设置](docs/images/m3-settings.png) · [通知](docs/images/m2-notification.png) · [登录卡片](docs/images/m9-settings-login.png) · [登录态检测](docs/images/m11-login-all-logged-in.png) |
+| [B 站画质](docs/images/m14-quality.png) · [失败重试](docs/images/m18-retry-failed.png) · [重试成功](docs/images/m18-retry-done.png) | [YouTube](docs/images/m8-youtube.png) · [微博图文](docs/images/m8-weibo.png) · [微博视频](docs/images/m8-weibo-video.png) |
+
+商店文案/权限/隐私说明见 [docs/store-listing.md](docs/store-listing.md)。
+
 ## 路线图
 
 - **M0** 工程骨架 + WebView 会话 + 响应捕获 ✅
@@ -318,6 +334,7 @@ reader pack JSON，替换内置 reader 的**页面提取脚本**与**响应匹�
 - **M17** 小红书视频笔记 + 诊断回归 + JSON 导入验证 ✅
 - **M18** 失败项重试 + Telegram 上传兜底 + 视频流细化 ✅
 - **M19** 通知重试入口 + Telegram 分组 mock 端到端 ✅
+- **M20** 上传失败清单/重试 + 商店发布文档 ✅
 
 ## 已知限制
 
