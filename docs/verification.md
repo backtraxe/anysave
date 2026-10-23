@@ -902,3 +902,21 @@ daemon `127.0.0.1:10086`）在用户真实浏览器里读取会话，再用 debu
 
 - 真实 Telegram Bot 对 WebP/超长图的拒收复现（mock 不校验格式，无法真实复现）
 - 修复后真实大图（>10MB/超长图）上传的端到端（兼容逻辑为代码级）
+
+## 实验 AK：用户样例《暮色海边》（M29 构建）
+
+用户提供的小红书分享文本：
+`… https://www.xiaohongshu.com/discovery/item/6adb0f2900000000240364f9?source=webshare&xhsshare=pc_web&xsec_token=…&xsec_source=pc_share`
+
+| 步骤 | 结果 |
+|---|---|
+| 无小红书 Cookie | xhs 把笔记页 302 到 `/login?redirectPath=…`，嵌入数据只有 32 chars（站点要求登录/匿名设备 Cookie），应用按超时处理 |
+| 导入浏览器 Cookie 后 | `embedded payload found: 3849 chars` → `items=3`，作者「玛卡巴卡没有推车」，2.3 s |
+| 保存 3 张 | `saved=3 failed=0`；其中两张是 ~12MB PNG，保存后为 PNG/JPG 原图 |
+| Telegram（mock） | 两张 >10MB 图片自动归一化为 JPEG（12,204,537 B → 618,444 B；12,587,085 B → 725,310 B）；只发 **1 个** `sendMediaGroup`（3 项） |
+| caption | 末尾为 `#玛卡巴卡没有推车 #小红书`（作者 + 平台 tag） |
+| 结论 | 该笔记的「部分图片上传失败」场景在 M29 的归一化 + 去重后通过；未再出现单张消息或漏图 |
+
+补充：无 Cookie 时小红书会要求登录，应用不会伪造匿名 Cookie。请先在
+「设置 → 登录 → 小红书」扫码，或导入浏览器导出的 Cookie；公开笔记在导入
+浏览器匿名 Cookie（含 a1/webId/web_session）后也可解析。
