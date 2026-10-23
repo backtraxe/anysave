@@ -35,6 +35,11 @@
             android:foregroundServiceType="dataSync" />
 
         <activity
+            android:name=".log.LogActivity"
+            android:exported="false"
+            android:label="@string/log_title" />
+
+        <activity
             android:name=".TelegramSettingsActivity"
             android:exported="false"
             android:label="@string/settings_title" />

@@ -1,6 +1,6 @@
 package io.github.backtraxe.anysave.telegram
 
-import android.util.Log
+import io.github.backtraxe.anysave.log.AppLog
 import org.json.JSONObject
 import kotlin.math.max
 import java.net.HttpURLConnection
@@ -77,7 +77,7 @@ class TelegramClient(private val baseUrl: String) {
         val valid = attachments.filter { TelegramProtocol.isWithinLimits(it.describe()) }
         val oversized = attachments.size - valid.size
         if (oversized > 0) {
-            Log.w(TAG, "telegram: skipping $oversized attachment(s) over the Bot API size limit")
+            AppLog.w(TAG, "telegram: skipping $oversized attachment(s) over the Bot API size limit")
         }
         if (valid.isEmpty()) {
             return UploadSummary(uploaded = 0, failed = oversized, lastError = "size limit")
@@ -100,7 +100,7 @@ class TelegramClient(private val baseUrl: String) {
                 sent = true
             } catch (t: Throwable) {
                 lastError = t.message ?: t.javaClass.simpleName
-                Log.w(TAG, "telegram: group ${index + 1}/${groups.size} failed: $lastError")
+                AppLog.w(TAG, "telegram: group ${index + 1}/${groups.size} failed: $lastError")
                 // Albums are atomic server-side, so an immediate retry cannot
                 // duplicate a partial album. Transient Telegram/CDN issues are
                 // common; retry before degrading to single messages.
@@ -112,10 +112,10 @@ class TelegramClient(private val baseUrl: String) {
                         )
                         sendGroup(token, chatId, group, groupCaption)
                         sent = true
-                        Log.i(TAG, "telegram: group ${index + 1}/${groups.size} sent on retry")
+                        AppLog.i(TAG, "telegram: group ${index + 1}/${groups.size} sent on retry")
                     } catch (retryError: Throwable) {
                         lastError = retryError.message ?: retryError.javaClass.simpleName
-                        Log.w(
+                        AppLog.w(
                             TAG,
                             "telegram: group ${index + 1}/${groups.size} retry failed: $lastError",
                         )
@@ -125,9 +125,9 @@ class TelegramClient(private val baseUrl: String) {
             if (sent) {
                 uploaded += group.size
                 captionPending = false
-                Log.i(TAG, "telegram: group ${index + 1}/${groups.size} sent (${group.size} item(s))")
+                AppLog.i(TAG, "telegram: group ${index + 1}/${groups.size} sent (${group.size} item(s))")
             } else {
-                Log.w(
+                AppLog.w(
                     TAG,
                     "telegram: group ${index + 1}/${groups.size} failed, " +
                         "trying items individually",
@@ -155,7 +155,7 @@ class TelegramClient(private val baseUrl: String) {
         }
 
         if (retryQueue.isNotEmpty()) {
-            Log.i(TAG, "telegram: retrying ${retryQueue.size} failed attachment(s) once")
+            AppLog.i(TAG, "telegram: retrying ${retryQueue.size} failed attachment(s) once")
             for (attachment in retryQueue) {
                 try {
                     sleepForRateLimit(lastError)

@@ -1,7 +1,7 @@
 package io.github.backtraxe.anysave.reader
 
 import android.content.Context
-import android.util.Log
+import io.github.backtraxe.anysave.log.AppLog
 import java.io.File
 
 /**
@@ -28,7 +28,7 @@ object ReaderOverrides {
             val pack = ReaderPackParser.parse(file.readText())
             pack.readers.associateBy { it.readerId }
         } catch (t: Throwable) {
-            Log.w(TAG, "ignoring invalid reader pack: ${t.message}")
+            AppLog.w(TAG, "ignoring invalid reader pack: ${t.message}")
             emptyMap()
         }
     }
@@ -45,7 +45,7 @@ object ReaderOverrides {
         file.parentFile?.mkdirs()
         file.writeText(packJson)
         overrides = pack.readers.associateBy { it.readerId }
-        Log.i(TAG, "reader pack applied: ${pack.readers.map { it.readerId }}")
+        AppLog.i(TAG, "reader pack applied: ${pack.readers.map { it.readerId }}")
         return pack.readers.size
     }
 

@@ -8,7 +8,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.SystemClock
 import android.os.Bundle
-import android.util.Log
+import io.github.backtraxe.anysave.log.AppLog
 import android.view.View
 import android.view.WindowManager
 import android.view.inputmethod.InputMethodManager
@@ -144,7 +144,7 @@ class MainActivity : Activity() {
         urlInput.clearFocus()
         statusText.text = getString(R.string.status_login_opened)
         webView.loadUrl(url)
-        Log.i(TAG, "opened login page $url")
+        AppLog.i(TAG, "opened login page $url")
     }
 
     override fun onStart() {
@@ -201,7 +201,7 @@ class MainActivity : Activity() {
             val post = try {
                 extractor.extract(url)
             } catch (t: Throwable) {
-                Log.w(TAG, "direct extractor ${extractor.id} failed", t)
+                AppLog.w(TAG, "direct extractor ${extractor.id} failed", t)
                 null
             }
             val elapsed = SystemClock.elapsedRealtime() - startedAt
@@ -209,13 +209,13 @@ class MainActivity : Activity() {
                 if (isFinishing || isDestroyed) return@runOnUiThread
                 if (post == null || post.isEmpty) {
                     statusText.text = getString(R.string.status_direct_failed)
-                    Log.i(TAG, "direct extract failed extractor=${extractor.id}")
+                    AppLog.i(TAG, "direct extract failed extractor=${extractor.id}")
                     return@runOnUiThread
                 }
                 currentPost = post
                 savingPostId = null
                 statusText.text = getString(R.string.status_parsed, post.items.size, elapsed)
-                Log.i(
+                AppLog.i(
                     TAG,
                     "parsed(direct) id=${post.awemeId} author=${post.author} " +
                         "items=${post.items.size} elapsed=${elapsed}ms",
@@ -241,7 +241,7 @@ class MainActivity : Activity() {
                 savingPostId = null
                 statusText.text =
                     getString(R.string.status_parsed, post.items.size, snapshot.elapsedMs)
-                Log.i(
+                AppLog.i(
                     TAG,
                     "parsed aweme=${post.awemeId} author=${post.author} " +
                         "images=${post.imageCount} videos=${post.videoCount} " +
@@ -255,19 +255,19 @@ class MainActivity : Activity() {
 
             snapshot.hits.isEmpty() -> {
                 statusText.text = getString(R.string.status_timeout)
-                Log.i(TAG, "timeout: no matching response in ${snapshot.elapsedMs}ms")
+                AppLog.i(TAG, "timeout: no matching response in ${snapshot.elapsedMs}ms")
                 diagnoseTimeoutLogin(snapshot.pageUrl)
             }
 
             else -> {
                 statusText.text = getString(R.string.status_parse_failed, snapshot.hits.size)
-                Log.i(
+                AppLog.i(
                     TAG,
                     "unparsed: ${snapshot.hits.size} response(s), " +
                         "patched=${snapshot.patched}, elapsed=${snapshot.elapsedMs}ms",
                 )
                 snapshot.hits.forEach {
-                    Log.i(TAG, "hit ${it.via} status=${it.status} len=${it.length} ${it.url}")
+                    AppLog.i(TAG, "hit ${it.via} status=${it.status} len=${it.length} ${it.url}")
                 }
                 diagnoseTimeoutLogin(snapshot.pageUrl)
             }
@@ -394,7 +394,7 @@ class MainActivity : Activity() {
         try {
             startActivity(intent)
         } catch (t: Throwable) {
-            Log.w(TAG, "no gallery app for $uri", t)
+            AppLog.w(TAG, "no gallery app for $uri", t)
             Toast.makeText(this, R.string.album_open_failed, Toast.LENGTH_SHORT).show()
         }
     }

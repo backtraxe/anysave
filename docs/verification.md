@@ -920,3 +920,25 @@ daemon `127.0.0.1:10086`）在用户真实浏览器里读取会话，再用 debu
 补充：无 Cookie 时小红书会要求登录，应用不会伪造匿名 Cookie。请先在
 「设置 → 登录 → 小红书」扫码，或导入浏览器导出的 Cookie；公开笔记在导入
 浏览器匿名 Cookie（含 a1/webId/web_session）后也可解析。
+
+## 实验 AL：应用内日志（M30）
+
+| 项 | 结果 |
+|---|---|
+| 入口 | 设置页底部「诊断」卡片 → 「查看日志」 |
+| 内容 | 一次微博提取后显示 4 条：hook installed / embedded payload / parse ok / parsed；头部显示 `AnySave 版本 (code) · Android 15 (SDK 35) · 机型 · locale · N/2000 lines` |
+| 操作 | Copy（写剪贴板 + Toast）、Share（ACTION_SEND chooser）、Clear（清空并刷新）均可用 |
+| 脱敏 | `xsec_token`、`sign`、`token`、`session` 等 query 参数在写入前替换为 `…`（单测覆盖；Cookie/token 值本就不入日志） |
+| 刷新 | 页面打开时每秒刷新，新行自动滚动到底部；可手动上滑查看历史 |
+
+## 实现结论（M30 追加）
+
+85. 应用内 logcat 不可行（READ_LOGS 权限），用 `AppLog` facade 同时写 logcat 与有界
+    内存环形缓冲，既不影响现有日志，也能在设置里查看/分享。
+86. 诊断日志必须默认脱敏：URL 里常带签名 token，分享出去前统一替换敏感 query 值。
+87. 日志面板采用 Info 头部 + 等宽正文 + Copy/Share/Clear，最小化排障操作成本。
+
+## 未验证项（M30 追加）
+
+- 超长日志（接近 2000 行）的滚动性能（TextView 渲染未做压力测试）
+- 真实问题反馈时日志分享的完整链路（Share intent 已实现）

@@ -1,7 +1,7 @@
 package io.github.backtraxe.anysave.reader
 
 import android.content.Context
-import android.util.Log
+import io.github.backtraxe.anysave.log.AppLog
 import io.github.backtraxe.anysave.BuildConfig
 import java.io.InputStream
 import java.net.HttpURLConnection
@@ -74,7 +74,7 @@ class ReaderPackRepository(context: Context) {
                 UpdateResult(true, "$applied reader(s) updated", applied)
             }
         } catch (t: Throwable) {
-            Log.w(TAG, "reader pack refresh failed: ${t.message}")
+            AppLog.w(TAG, "reader pack refresh failed: ${t.message}")
             UpdateResult(false, t.message ?: t.javaClass.simpleName)
         } finally {
             connection?.disconnect()

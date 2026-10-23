@@ -15,6 +15,7 @@ import android.webkit.WebViewClient
 import android.widget.Toast
 import io.github.backtraxe.anysave.model.DESKTOP_CHROME_UA
 import io.github.backtraxe.anysave.reader.ReaderPackRepository
+import io.github.backtraxe.anysave.log.LogActivity
 import io.github.backtraxe.anysave.session.LoginSignals
 import io.github.backtraxe.anysave.settings.BilibiliQuality
 import io.github.backtraxe.anysave.session.SessionManager
@@ -127,6 +128,9 @@ class TelegramSettingsActivity : Activity() {
         clearDouyinSession.setOnClickListener { clearSiteSession("douyin", getString(R.string.login_douyin)) }
         clearBilibiliSession.setOnClickListener { clearSiteSession("bilibili", getString(R.string.login_bilibili)) }
         clearXiaohongshuSession.setOnClickListener { clearSiteSession("xiaohongshu", getString(R.string.login_xiaohongshu)) }
+        findViewById<View>(R.id.openLogs).setOnClickListener {
+            startActivity(android.content.Intent(this, LogActivity::class.java))
+        }
         qualityAuto.setOnClickListener { setQuality(BilibiliQuality.AUTO) }
         quality1080.setOnClickListener { setQuality(BilibiliQuality.P1080) }
         quality720.setOnClickListener { setQuality(BilibiliQuality.P720) }

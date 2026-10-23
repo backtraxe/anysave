@@ -4,7 +4,7 @@ import android.media.MediaCodec
 import android.media.MediaExtractor
 import android.media.MediaFormat
 import android.media.MediaMuxer
-import android.util.Log
+import io.github.backtraxe.anysave.log.AppLog
 import java.io.File
 import java.nio.ByteBuffer
 
@@ -30,7 +30,7 @@ object DashMuxer {
             val videoTrack = findTrack(videoExtractor, "video/")
             val audioTrack = findTrack(audioExtractor, "audio/")
             if (videoTrack < 0 || audioTrack < 0) {
-                Log.w(TAG, "mux skipped: videoTrack=$videoTrack audioTrack=$audioTrack")
+                AppLog.w(TAG, "mux skipped: videoTrack=$videoTrack audioTrack=$audioTrack")
                 return false
             }
 
@@ -49,13 +49,13 @@ object DashMuxer {
             val videoBytes = copyTrack(videoExtractor, videoFormat, muxer, videoOut)
             val audioBytes = copyTrack(audioExtractor, audioFormat, muxer, audioOut)
             muxer.stop()
-            Log.i(
+            AppLog.i(
                 TAG,
                 "muxed video=${videoBytes}B audio=${audioBytes}B -> ${outputFile.length()}B",
             )
             outputFile.length() > 0
         } catch (t: Throwable) {
-            Log.w(TAG, "dash mux failed: ${t.message}", t)
+            AppLog.w(TAG, "dash mux failed: ${t.message}", t)
             false
         } finally {
             try {

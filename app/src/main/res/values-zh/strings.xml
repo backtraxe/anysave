@@ -41,6 +41,16 @@
     <string name="upload_retry_title">%1$d 个上传失败</string>
     <string name="upload_retry_action">重试上传</string>
     <string name="status_retrying_upload">正在重试失败上传…</string>
+    <string name="log_title">日志</string>
+    <string name="log_back">返回</string>
+    <string name="log_copy">复制</string>
+    <string name="log_share">分享</string>
+    <string name="log_clear">清空</string>
+    <string name="log_empty">还没有日志。先提取或保存一次再看。</string>
+    <string name="log_copied">日志已复制</string>
+    <string name="diagnostics_title">诊断</string>
+    <string name="diagnostics_hint">出问题了？应用内日志保留最近 2000 条事件（反馈问题时也可直接复制）。不会记录 token 或 Cookie 值。</string>
+    <string name="diagnostics_view">查看日志</string>
     <string name="status_saving">正在保存 %1$d 项到相册…</string>
     <string name="status_saved">已保存 %1$d 项到 AnySave 相册</string>
     <string name="album_open_failed">没有可打开相册的应用。</string>

@@ -6,7 +6,7 @@ import android.net.Uri
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
-import android.util.Log
+import io.github.backtraxe.anysave.log.AppLog
 import android.webkit.CookieManager
 import io.github.backtraxe.anysave.model.MediaItem
 import io.github.backtraxe.anysave.model.MediaKind
@@ -62,7 +62,7 @@ class MediaSaver(context: Context) {
             }
             if (result != null) return result
             if (attempt < candidates.lastIndex) {
-                Log.w(TAG, "primary media url failed, trying fallback for ${target.displayName}")
+                AppLog.w(TAG, "primary media url failed, trying fallback for ${target.displayName}")
             }
         }
         return null
@@ -93,13 +93,13 @@ class MediaSaver(context: Context) {
                 if (downloaded.bytes <= 0L) throw IllegalStateException("empty response body")
                 val finalTarget = correctContainer(uri, target, item, downloaded.header)
                 publish(uri)
-                Log.i(TAG, "saved ${finalTarget.displayName} (${downloaded.bytes}B) -> $uri")
+                AppLog.i(TAG, "saved ${finalTarget.displayName} (${downloaded.bytes}B) -> $uri")
                 return SavedFile(uri = uri, bytes = downloaded.bytes)
             } catch (t: Throwable) {
                 deleteQuietly(uri)
                 lastError = t
                 if (!isRetryable(t) || attempt == MAX_ATTEMPTS - 1) break
-                Log.w(
+                AppLog.w(
                     TAG,
                     "download attempt ${attempt + 1} failed for ${target.displayName}: " +
                         "${t.message}; retrying",
@@ -107,7 +107,7 @@ class MediaSaver(context: Context) {
                 sleepBackoff(attempt)
             }
         }
-        Log.w(TAG, "download failed for ${target.displayName}: ${lastError?.message}")
+        AppLog.w(TAG, "download failed for ${target.displayName}: ${lastError?.message}")
         return null
     }
 
@@ -143,14 +143,14 @@ class MediaSaver(context: Context) {
             }
             val finalTarget = correctContainer(uri, target, item, readHeader(outputFile))
             publish(uri)
-            Log.i(
+            AppLog.i(
                 TAG,
                 "muxed ${finalTarget.displayName} (v=${videoBytes}B a=${audioBytes}B " +
                     "-> ${bytes}B) -> $uri",
             )
             SavedFile(uri = uri, bytes = bytes)
         } catch (t: Throwable) {
-            Log.w(TAG, "muxed save failed for ${target.displayName}: ${t.message}")
+            AppLog.w(TAG, "muxed save failed for ${target.displayName}: ${t.message}")
             deleteQuietly(uri)
             null
         } finally {
@@ -178,7 +178,7 @@ class MediaSaver(context: Context) {
                 )
                 val dir = File(publicDir, MediaNaming.ALBUM)
                 if (!dir.exists() && !dir.mkdirs()) {
-                    Log.w(TAG, "cannot create ${dir.absolutePath}")
+                    AppLog.w(TAG, "cannot create ${dir.absolutePath}")
                     return null
                 }
                 put(MediaStore.MediaColumns.DATA, File(dir, target.displayName).absolutePath)
@@ -187,7 +187,7 @@ class MediaSaver(context: Context) {
         return try {
             resolver.insert(collection, values)
         } catch (t: Throwable) {
-            Log.w(TAG, "media insert failed for ${target.displayName}", t)
+            AppLog.w(TAG, "media insert failed for ${target.displayName}", t)
             null
         }
     }
@@ -205,7 +205,7 @@ class MediaSaver(context: Context) {
         try {
             resolver.delete(uri, null, null)
         } catch (cleanup: Throwable) {
-            Log.w(TAG, "failed to clean up pending row", cleanup)
+            AppLog.w(TAG, "failed to clean up pending row", cleanup)
         }
     }
 
@@ -227,9 +227,9 @@ class MediaSaver(context: Context) {
                 put(MediaStore.MediaColumns.MIME_TYPE, fixed.mimeType)
             }
             resolver.update(uri, values, null, null)
-            Log.i(TAG, "container corrected ${target.displayName} -> ${fixed.displayName}")
+            AppLog.i(TAG, "container corrected ${target.displayName} -> ${fixed.displayName}")
         } catch (t: Throwable) {
-            Log.w(TAG, "cannot correct media metadata: ${t.message}")
+            AppLog.w(TAG, "cannot correct media metadata: ${t.message}")
         }
         return fixed
     }
@@ -253,7 +253,7 @@ class MediaSaver(context: Context) {
             } catch (t: Throwable) {
                 lastError = t
                 if (!isRetryable(t) || attempt == MAX_ATTEMPTS - 1) throw t
-                Log.w(
+                AppLog.w(
                     TAG,
                     "track download attempt ${attempt + 1} failed: ${t.message}; retrying",
                 )
@@ -357,7 +357,7 @@ class MediaSaver(context: Context) {
     private fun cookieFor(url: String): String? = try {
         CookieManager.getInstance().getCookie(url)?.takeIf { it.isNotBlank() }
     } catch (t: Throwable) {
-        Log.w(TAG, "cookie lookup failed: ${t.message}")
+        AppLog.w(TAG, "cookie lookup failed: ${t.message}")
         null
     }
 

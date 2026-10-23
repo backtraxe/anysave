@@ -6,7 +6,7 @@ import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
-import android.util.Log
+import io.github.backtraxe.anysave.log.AppLog
 import android.webkit.WebView
 import androidx.webkit.ScriptHandler
 import androidx.webkit.WebViewCompat
@@ -69,7 +69,7 @@ class PageExtractor(
 
     fun extract(url: String, reader: SiteReader) {
         if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
-            Log.e(TAG, "DOCUMENT_START_SCRIPT is not supported by this WebView")
+            AppLog.e(TAG, "DOCUMENT_START_SCRIPT is not supported by this WebView")
             onFinished(ExtractionSnapshot(url, "", false, emptyList(), 0L))
             return
         }
@@ -95,7 +95,7 @@ class PageExtractor(
             }
             val handler = WebViewCompat.addDocumentStartJavaScript(webView, script, setOf(hookOrigin))
             installedHooks[hookOrigin] = InstalledHook(handler, activePatterns, script)
-            Log.i(TAG, "reader=${reader.id} hook installed for $hookOrigin (hot=${previous != null})")
+            AppLog.i(TAG, "reader=${reader.id} hook installed for $hookOrigin (hot=${previous != null})")
         }
 
         generation += 1
@@ -163,7 +163,7 @@ class PageExtractor(
             if (gen != generation) return@evaluateJavascript
             val post = parsePost(raw, snapshot.pageUrl)
             val elapsed = SystemClock.elapsedRealtime() - startedAt
-            Log.i(
+            AppLog.i(
                 TAG,
                 "captured ${snapshot.hits.size} response(s) in ${elapsed}ms, post=${post?.items?.size}",
             )
@@ -178,7 +178,7 @@ class PageExtractor(
                 // A reader pack may have made a generic XHR match the pattern;
                 // a real page can still have usable embedded/data. Try it once.
                 embeddedAfterHitTried = true
-                Log.i(TAG, "captured bodies had no post, trying embedded script")
+                AppLog.i(TAG, "captured bodies had no post, trying embedded script")
                 readEmbeddedPayload(gen, snapshot, currentReader)
             } else {
                 finish(snapshot.copy(elapsedMs = elapsed, post = null))
@@ -203,20 +203,20 @@ class PageExtractor(
             val payload = jsonString(raw)?.takeIf { it.isNotBlank() }
             val pageUrl = snapshot.pageUrl.ifBlank { webView.url.orEmpty() }
             val post = if (payload == null) {
-                Log.i(TAG, "no embedded payload for ${reader.id} (${pageUrl})")
+                AppLog.i(TAG, "no embedded payload for ${reader.id} (${pageUrl})")
                 null
             } else {
-                Log.i(TAG, "embedded payload found: ${payload.length} chars")
+                AppLog.i(TAG, "embedded payload found: ${payload.length} chars")
                 try {
                     reader.parse(payload, pageUrl)
                 } catch (t: Throwable) {
-                    Log.w(TAG, "reader ${reader.id} failed on embedded payload", t)
+                    AppLog.w(TAG, "reader ${reader.id} failed on embedded payload", t)
                     null
                 }
             }
             if (post != null && !post.isEmpty) {
                 val elapsed = SystemClock.elapsedRealtime() - startedAt
-                Log.i(TAG, "embedded parse ok in ${elapsed}ms, items=${post.items.size}")
+                AppLog.i(TAG, "embedded parse ok in ${elapsed}ms, items=${post.items.size}")
                 finish(snapshot.copy(elapsedMs = elapsed, post = post))
             } else {
                 handler.postDelayed({ poll(gen) }, POLL_INTERVAL_MS)
@@ -237,7 +237,7 @@ class PageExtractor(
         val array = try {
             JSONArray(payload)
         } catch (t: Throwable) {
-            Log.w(TAG, "failed to parse captured bodies", t)
+            AppLog.w(TAG, "failed to parse captured bodies", t)
             return null
         }
         for (i in 0 until array.length()) {
@@ -247,7 +247,7 @@ class PageExtractor(
             val post = try {
                 reader.parse(body, pageUrl)
             } catch (t: Throwable) {
-                Log.w(TAG, "reader ${reader.id} failed on captured body", t)
+                AppLog.w(TAG, "reader ${reader.id} failed on captured body", t)
                 null
             }
             if (post != null && !post.isEmpty) return post
@@ -278,7 +278,7 @@ class PageExtractor(
                 elapsedMs = 0L,
             )
         } catch (t: Throwable) {
-            Log.w(TAG, "failed to parse extraction snapshot", t)
+            AppLog.w(TAG, "failed to parse extraction snapshot", t)
             null
         }
     }
@@ -303,7 +303,7 @@ class PageExtractor(
         return try {
             JSONTokener(raw).nextValue() as? String
         } catch (t: Throwable) {
-            Log.w(TAG, "failed to decode JS result", t)
+            AppLog.w(TAG, "failed to decode JS result", t)
             null
         }
     }

@@ -11,7 +11,7 @@ import android.net.Uri
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.util.Log
+import io.github.backtraxe.anysave.log.AppLog
 import io.github.backtraxe.anysave.MainActivity
 import io.github.backtraxe.anysave.R
 import io.github.backtraxe.anysave.model.MediaItem
@@ -78,12 +78,12 @@ class SaveService : Service() {
         }
         val decoded = SaveJobCodec.decode(intent?.getStringExtra(EXTRA_JOB))
         if (decoded == null || decoded.items.isEmpty()) {
-            Log.w(TAG, "save start ignored: empty job")
+            AppLog.w(TAG, "save start ignored: empty job")
             stopSelf()
             return START_NOT_STICKY
         }
         if (running) {
-            Log.i(TAG, "save already running, ignoring duplicate start")
+            AppLog.i(TAG, "save already running, ignoring duplicate start")
             return START_NOT_STICKY
         }
 
@@ -101,7 +101,7 @@ class SaveService : Service() {
 
         SaveStateBus.publish(SaveState.Running(total = total, done = 0, failed = 0))
         startForeground(NOTIFICATION_ID, buildProgressNotification(0))
-        Log.i(TAG, "save start: $total item(s) to ${MediaNaming.ALBUM}")
+        AppLog.i(TAG, "save start: $total item(s) to ${MediaNaming.ALBUM}")
 
         val saver = MediaSaver(this)
         val executor = Executors.newFixedThreadPool(WORKERS)
@@ -177,18 +177,18 @@ class SaveService : Service() {
             if (attachment != null) {
                 uploadable += attachment
             } else {
-                Log.w(TAG, "telegram: skipping unreadable attachment ${entry.uri}")
+                AppLog.w(TAG, "telegram: skipping unreadable attachment ${entry.uri}")
             }
         }
         if (uploadable.size < entries.size) {
-            Log.w(
+            AppLog.w(
                 TAG,
                 "telegram: ${entries.size - uploadable.size}/${entries.size} attachment(s) " +
                     "could not be prepared for upload",
             )
         }
         if (uploadable.isEmpty()) {
-            Log.w(TAG, "telegram: nothing readable to upload")
+            AppLog.w(TAG, "telegram: nothing readable to upload")
             handler.post {
                 finishRun(saved = saved, failed = failed, uploaded = 0, uploadFailed = entries.size)
             }
@@ -202,7 +202,7 @@ class SaveService : Service() {
             NOTIFICATION_ID,
             buildUploadNotification(0, uploadable.size),
         )
-        Log.i(TAG, "telegram: start upload: ${uploadable.size} item(s)")
+        AppLog.i(TAG, "telegram: start upload: ${uploadable.size} item(s)")
 
         val client = TelegramClient(TelegramSettings.apiBase(this))
         val caption = TelegramProtocol.buildCaption(
@@ -229,7 +229,7 @@ class SaveService : Service() {
                 buildUploadNotification(uploaded + uploadFailed, uploadable.size),
             )
         }
-        Log.i(TAG, "telegram: finished uploaded=${summary.uploaded} failed=${summary.failed}")
+        AppLog.i(TAG, "telegram: finished uploaded=${summary.uploaded} failed=${summary.failed}")
         lastUploadPost = post
         lastUploadEntries = entries
         lastUploadFailedNames = summary.failedNames
@@ -262,10 +262,10 @@ class SaveService : Service() {
             ) {
                 val prepared = PhotoCompressor.prepare(payload, TelegramProtocol.MAX_PHOTO_BYTES)
                 if (prepared == null) {
-                    Log.w(TAG, "telegram: cannot prepare photo $fileName for the Bot API")
+                    AppLog.w(TAG, "telegram: cannot prepare photo $fileName for the Bot API")
                     return null
                 }
-                Log.i(
+                AppLog.i(
                     TAG,
                     "telegram: prepared $fileName (${payload.size} B -> ${prepared.bytes.size} B jpeg)",
                 )
@@ -281,7 +281,7 @@ class SaveService : Service() {
             )
         } catch (t: Throwable) {
             val name = MediaNaming.target(post, entry.item).displayName
-            Log.w(TAG, "telegram: cannot read $name (${entry.uri}): ${t.message}")
+            AppLog.w(TAG, "telegram: cannot read $name (${entry.uri}): ${t.message}")
             null
         }
     }
@@ -336,7 +336,7 @@ class SaveService : Service() {
         )
         // Detach (not remove): the finished summary stays in the shade.
         stopForeground(STOP_FOREGROUND_DETACH)
-        Log.i(
+        AppLog.i(
             TAG,
             "run finished: saved=$saved failed=$failed uploaded=$uploaded uploadFailed=$uploadFailed",
         )
@@ -346,7 +346,7 @@ class SaveService : Service() {
     override fun onDestroy() {
         if (running) {
             running = false
-            Log.w(TAG, "save service destroyed while running")
+            AppLog.w(TAG, "save service destroyed while running")
             SaveStateBus.publish(
                 SaveState.Finished(
                     total = total,

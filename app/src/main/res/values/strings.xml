@@ -42,6 +42,16 @@
     <string name="upload_retry_title">%1$d failed upload(s)</string>
     <string name="upload_retry_action">Retry upload</string>
     <string name="status_retrying_upload">Retrying failed uploads…</string>
+    <string name="log_title">Logs</string>
+    <string name="log_back">Back</string>
+    <string name="log_copy">Copy</string>
+    <string name="log_share">Share</string>
+    <string name="log_clear">Clear</string>
+    <string name="log_empty">No log entries yet. Extract or save something first.</string>
+    <string name="log_copied">Logs copied</string>
+    <string name="diagnostics_title">Diagnostics</string>
+    <string name="diagnostics_hint">Something failed? The in-app log keeps the last 2000 events (also useful when reporting an issue). Token and cookie values are never logged.</string>
+    <string name="diagnostics_view">View logs</string>
     <string name="status_saving">Saving %1$d item(s) to the gallery…</string>
     <string name="status_saved">%1$d item(s) saved to the AnySave album</string>
     <string name="album_open_failed">No gallery app available.</string>

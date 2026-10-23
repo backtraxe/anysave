@@ -1,6 +1,6 @@
 package io.github.backtraxe.anysave.reader
 
-import android.util.Log
+import io.github.backtraxe.anysave.log.AppLog
 import io.github.backtraxe.anysave.model.MediaItem
 import io.github.backtraxe.anysave.model.MediaKind
 import io.github.backtraxe.anysave.model.MediaSite
@@ -50,7 +50,7 @@ object YouTubeExtractor : DirectExtractor {
             val info = StreamInfo.getInfo(ServiceList.YouTube, url)
             toPost(info, url)
         } catch (t: Throwable) {
-            Log.w(TAG, "youtube extraction failed: ${t.message}")
+            AppLog.w(TAG, "youtube extraction failed: ${t.message}")
             null
         }
     }
