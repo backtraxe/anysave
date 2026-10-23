@@ -16,7 +16,7 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 
 ## 状态
 
-**M28 下载重试 + Telegram 相册/标签**（可编译、可运行、已端到端验证）。完整链路：
+**M29 Telegram 上传稳定性（图片兼容 + 去重）**（可编译、可运行、已端到端验证）。完整链路：
 
 - 输入链接 → WebView 打开页面
 - 文档开始时注入响应监听（`app/src/main/res/raw/hook.js`），命中时连同响应体一起留下
@@ -38,6 +38,10 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 - **登录/会话（M9）**：设置页「登录」用**站点桌面版登录页**（App 内 WebView、
   手机扫码），登录态就是 WebView 的 Cookie，只存在应用私有目录；可一键清除
   所有站点登录态。抖音提取必须登录，B 站登录后可拿更高清晰度
+- **图片上传兼容（M29）**：上传前统一处理 WebP 等非 JPG/PNG、>10MB、宽高和 >10000、
+  长宽比 >20 的图片（缩放/裁剪/压缩为 JPEG），避免 Telegram 拒收导致「部分图片失败」
+- **上传去重（M29）**：修复并发 worker 导致 `complete()` 被多次调用、同一批被上传两次的问题；
+  新增 429 `retry_after` 等待，以及跳过/准备失败的诊断日志
 - **下载失败重试（M28）**：HTTP 5xx/429/408、超时、连接中断、截断响应自动重试
   （最多 3 次 + 退避）；B 站 DASH 的视频/音频轨分别重试；主 URL 失败仍走 fallback URL
 - **Telegram 相册/标签（M28）**：相册发送失败先**重试整组**（服务端原子，不会重复），
@@ -138,6 +142,7 @@ AnySave 是一个 Android 原生应用：**无服务端、无 Termux、无 Cooki
 | 超时诊断回归 | B站无效 BV：登录时「Bilibili looks logged in…」，清除登录态后「You are not logged in to Bilibili…」；小红书风控/坏链接：登录时「Xiaohongshu looks logged in…」，清除后「You are not logged in to Xiaohongshu…」 |
 | Cookie-Editor JSON | UI 导入 5 条 JSON Cookie：DB 中 5/5 名称与值完全一致，`Bilibili: Logged in · Backtraxe` |
 | 超时登录诊断 | 抖音未登录时提取：状态「You are not logged in to Douyin. Open Settings → Login, sign in, then retry.」；登录后提取 profile 页（必然不产生 detail）超时：状态「Douyin looks logged in. The site may have changed or the response was empty.」，页面同时显示已登录的「背影」主页 |
+| Telegram 稳定性 | 微博 3 图保存后 mock 仅收到 **1 个** `sendMediaGroup`（3 项、无重复；修复前同一批会发 2 次）；caption 仍带 `#杨伊琳10 #微博`；上传前兼容处理/429 等待为代码级验证（mock 不做格式校验，未复现真实拒收） |
 | 下载/上传修复 | 微博 3 图真实保存：`saved=3 failed=0`；mock 注入首组 400 → App 日志 `group 1/1 failed` → `sent on retry`，只发 1 个 `sendMediaGroup`（3 项），无单张消息；caption 实测包含 `#杨伊琳10 #微博`（作者/平台 tag） |
 | 小红书短链 | 粘贴裸域 `xhslink.cn/a/abc` → 输入框归一为 `https://xhslink.cn/a/abc`；日志 `reader=xiaohongshu hook installed for https://xhslink.cn` + `https://www.xiaohongshu.com`，随后按短链实际跳转解析（本用例为无效码，超时属预期）；单测覆盖短链/分享文案/裸域（87 条） |
 | 小红书桌面页 | 登录态下提取真实笔记：`items=12`、作者「让心自由」（2.9 s），12 张图全部保存成功（`saved=12 failed=0`，单张最大 ~23 MB）；此前移动 UA 同一路径会拿 10 KB 的 sec 风控页 |
@@ -364,6 +369,7 @@ reader pack JSON，替换内置 reader 的**页面提取脚本**与**响应匹�
 - **M26** 极简书签图标（无箭头）✅
 - **M27** 小红书 xhslink 短链 ✅
 - **M28** 下载重试 + Telegram 相册重试/重平衡/标签 + 大图压缩 ✅
+- **M29** Telegram 图片格式/尺寸兼容 + 重复上传修复 + 429 处理 ✅
 
 ## 已知限制
 

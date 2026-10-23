@@ -2,6 +2,7 @@ package io.github.backtraxe.anysave.telegram
 
 import android.util.Log
 import org.json.JSONObject
+import kotlin.math.max
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
@@ -105,7 +106,10 @@ class TelegramClient(private val baseUrl: String) {
                 // common; retry before degrading to single messages.
                 if (group.size > 1) {
                     try {
-                        Thread.sleep(GROUP_RETRY_DELAY_MS)
+                        Thread.sleep(
+                            max(GROUP_RETRY_DELAY_MS, retryDelayMillis(t))
+                                .coerceAtMost(MAX_RETRY_WAIT_MS),
+                        )
                         sendGroup(token, chatId, group, groupCaption)
                         sent = true
                         Log.i(TAG, "telegram: group ${index + 1}/${groups.size} sent on retry")
@@ -134,6 +138,7 @@ class TelegramClient(private val baseUrl: String) {
                 for (attachment in group) {
                     val itemCaption = if (captionPending && groupUploaded == 0) caption else ""
                     try {
+                        sleepForRateLimit(lastError)
                         sendSingle(token, chatId, attachment, itemCaption)
                         groupUploaded += 1
                         captionPending = false
@@ -153,6 +158,7 @@ class TelegramClient(private val baseUrl: String) {
             Log.i(TAG, "telegram: retrying ${retryQueue.size} failed attachment(s) once")
             for (attachment in retryQueue) {
                 try {
+                    sleepForRateLimit(lastError)
                     sendSingle(token, chatId, attachment, "")
                     uploaded += 1
                     failed -= 1
@@ -263,7 +269,8 @@ class TelegramClient(private val baseUrl: String) {
             val json = if (text.isBlank()) JSONObject() else JSONObject(text)
             if (!json.optBoolean("ok", false)) {
                 val description = json.optString("description").ifBlank { "HTTP $status" }
-                throw TelegramApiException(description)
+                val retryAfter = json.optJSONObject("parameters")?.optLong("retry_after") ?: 0L
+                throw TelegramApiException(description, retryAfter * 1000L)
             }
             return json
         } finally {
@@ -278,12 +285,33 @@ class TelegramClient(private val baseUrl: String) {
         }.toByteArray(Charsets.UTF_8)
     }
 
-    class TelegramApiException(message: String) : IllegalStateException(message)
+    class TelegramApiException(
+        message: String,
+        val retryAfterMs: Long = 0L,
+    ) : IllegalStateException(message)
+
+    private fun retryDelayMillis(t: Throwable?): Long =
+        (t as? TelegramApiException)?.retryAfterMs ?: 0L
+
+    /** Honors Bot API 429 `parameters.retry_after`, capped for UI sanity. */
+    private fun sleepForRateLimit(lastError: String?) {
+        val delay = lastError
+            ?.let { Regex("retry after (\\d+)", RegexOption.IGNORE_CASE).find(it) }
+            ?.groupValues
+            ?.getOrNull(1)
+            ?.toLongOrNull()
+            ?.times(1000L)
+            ?: 0L
+        if (delay > 0) {
+            Thread.sleep(delay.coerceAtMost(MAX_RETRY_WAIT_MS))
+        }
+    }
 
     private companion object {
         private const val TAG = "AnySave"
         private const val CONNECT_TIMEOUT_MS = 15_000
         private const val READ_TIMEOUT_MS = 120_000
         private const val GROUP_RETRY_DELAY_MS = 700L
+        private const val MAX_RETRY_WAIT_MS = 10_000L
     }
 }

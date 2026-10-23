@@ -50,6 +50,9 @@ class SaveService : Service() {
 
     @Volatile
     private var running = false
+    /** Guards complete() against multiple worker callbacks racing on the last items. */
+    @Volatile
+    private var completed = false
     private var total = 0
 
     @Volatile
@@ -86,6 +89,7 @@ class SaveService : Service() {
 
         job = decoded
         running = true
+        completed = false
         total = decoded.items.size
         doneCount.set(0)
         failedCount.set(0)
@@ -129,7 +133,10 @@ class SaveService : Service() {
         val saved = doneCount.get()
         val failed = failedCount.get()
         if (saved + failed >= total) {
-            complete(saved, failed)
+            if (!completed) {
+                completed = true
+                complete(saved, failed)
+            }
             return
         }
         SaveStateBus.publish(SaveState.Running(total = total, done = saved, failed = failed))
@@ -167,7 +174,18 @@ class SaveService : Service() {
         val uploadable = ArrayList<TelegramClient.UploadAttachment>(entries.size)
         for (entry in entries) {
             val attachment = readAttachment(post, entry)
-            if (attachment != null) uploadable += attachment
+            if (attachment != null) {
+                uploadable += attachment
+            } else {
+                Log.w(TAG, "telegram: skipping unreadable attachment ${entry.uri}")
+            }
+        }
+        if (uploadable.size < entries.size) {
+            Log.w(
+                TAG,
+                "telegram: ${entries.size - uploadable.size}/${entries.size} attachment(s) " +
+                    "could not be prepared for upload",
+            )
         }
         if (uploadable.isEmpty()) {
             Log.w(TAG, "telegram: nothing readable to upload")
@@ -239,17 +257,19 @@ class SaveService : Service() {
             var payload = bytes
             var fileName = target.displayName
             var mimeType = target.mimeType
-            if (!target.isVideo && payload.size.toLong() > TelegramProtocol.MAX_PHOTO_BYTES) {
-                val compressed = PhotoCompressor.compressToJpeg(
-                    payload,
-                    TelegramProtocol.MAX_PHOTO_BYTES,
-                )
-                if (compressed == null) {
-                    Log.w(TAG, "telegram: cannot compress oversized photo $fileName")
+            if (!target.isVideo &&
+                PhotoCompressor.needsPreparation(payload, mimeType, TelegramProtocol.MAX_PHOTO_BYTES)
+            ) {
+                val prepared = PhotoCompressor.prepare(payload, TelegramProtocol.MAX_PHOTO_BYTES)
+                if (prepared == null) {
+                    Log.w(TAG, "telegram: cannot prepare photo $fileName for the Bot API")
                     return null
                 }
-                Log.i(TAG, "telegram: compressed $fileName ${payload.size} -> ${compressed.size} B")
-                payload = compressed
+                Log.i(
+                    TAG,
+                    "telegram: prepared $fileName (${payload.size} B -> ${prepared.bytes.size} B jpeg)",
+                )
+                payload = prepared.bytes
                 fileName = fileName.substringBeforeLast('.', fileName) + ".jpg"
                 mimeType = "image/jpeg"
             }
@@ -260,7 +280,8 @@ class SaveService : Service() {
                 isVideo = target.isVideo,
             )
         } catch (t: Throwable) {
-            Log.w(TAG, "telegram: cannot read ${entry.uri}: ${t.message}")
+            val name = MediaNaming.target(post, entry.item).displayName
+            Log.w(TAG, "telegram: cannot read $name (${entry.uri}): ${t.message}")
             null
         }
     }
