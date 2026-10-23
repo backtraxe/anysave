@@ -93,20 +93,39 @@ class TelegramClient(private val baseUrl: String) {
 
         groups.forEachIndexed { index, group ->
             val groupCaption = if (captionPending) caption else ""
+            var sent = false
             try {
-                if (group.size == 1) {
-                    sendSingle(token, chatId, group.single(), groupCaption)
-                } else {
-                    sendAlbum(token, chatId, group, groupCaption)
+                sendGroup(token, chatId, group, groupCaption)
+                sent = true
+            } catch (t: Throwable) {
+                lastError = t.message ?: t.javaClass.simpleName
+                Log.w(TAG, "telegram: group ${index + 1}/${groups.size} failed: $lastError")
+                // Albums are atomic server-side, so an immediate retry cannot
+                // duplicate a partial album. Transient Telegram/CDN issues are
+                // common; retry before degrading to single messages.
+                if (group.size > 1) {
+                    try {
+                        Thread.sleep(GROUP_RETRY_DELAY_MS)
+                        sendGroup(token, chatId, group, groupCaption)
+                        sent = true
+                        Log.i(TAG, "telegram: group ${index + 1}/${groups.size} sent on retry")
+                    } catch (retryError: Throwable) {
+                        lastError = retryError.message ?: retryError.javaClass.simpleName
+                        Log.w(
+                            TAG,
+                            "telegram: group ${index + 1}/${groups.size} retry failed: $lastError",
+                        )
+                    }
                 }
+            }
+            if (sent) {
                 uploaded += group.size
                 captionPending = false
                 Log.i(TAG, "telegram: group ${index + 1}/${groups.size} sent (${group.size} item(s))")
-            } catch (t: Throwable) {
-                lastError = t.message ?: t.javaClass.simpleName
+            } else {
                 Log.w(
                     TAG,
-                    "telegram: group ${index + 1}/${groups.size} failed: $lastError, " +
+                    "telegram: group ${index + 1}/${groups.size} failed, " +
                         "trying items individually",
                 )
                 // One bad item must not lose the rest of the album; failed
@@ -151,6 +170,19 @@ class TelegramClient(private val baseUrl: String) {
             lastError = lastError,
             failedNames = failedNames.toList(),
         )
+    }
+
+    private fun sendGroup(
+        token: String,
+        chatId: String,
+        group: List<UploadAttachment>,
+        caption: String,
+    ) {
+        if (group.size == 1) {
+            sendSingle(token, chatId, group.single(), caption)
+        } else {
+            sendAlbum(token, chatId, group, caption)
+        }
     }
 
     private fun sendSingle(
@@ -252,5 +284,6 @@ class TelegramClient(private val baseUrl: String) {
         private const val TAG = "AnySave"
         private const val CONNECT_TIMEOUT_MS = 15_000
         private const val READ_TIMEOUT_MS = 120_000
+        private const val GROUP_RETRY_DELAY_MS = 700L
     }
 }

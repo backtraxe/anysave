@@ -76,28 +76,39 @@ class MediaSaver(context: Context) {
         target: MediaNaming.Target,
         mediaUrl: String,
     ): SavedFile? {
-        val uri = insertPending(target) ?: return null
-        return try {
-            val output = resolver.openOutputStream(uri)
-                ?: throw IllegalStateException("no output stream for $uri")
-            val downloaded = output.use {
-                downloadToStream(
-                    url = mediaUrl,
-                    referer = post.site.referer,
-                    userAgent = post.site.downloadUserAgent ?: DEFAULT_USER_AGENT,
-                    destination = it,
+        var lastError: Throwable? = null
+        for (attempt in 0 until MAX_ATTEMPTS) {
+            val uri = insertPending(target) ?: return null
+            try {
+                val output = resolver.openOutputStream(uri)
+                    ?: throw IllegalStateException("no output stream for $uri")
+                val downloaded = output.use {
+                    downloadToStream(
+                        url = mediaUrl,
+                        referer = post.site.referer,
+                        userAgent = post.site.downloadUserAgent ?: DEFAULT_USER_AGENT,
+                        destination = it,
+                    )
+                }
+                if (downloaded.bytes <= 0L) throw IllegalStateException("empty response body")
+                val finalTarget = correctContainer(uri, target, item, downloaded.header)
+                publish(uri)
+                Log.i(TAG, "saved ${finalTarget.displayName} (${downloaded.bytes}B) -> $uri")
+                return SavedFile(uri = uri, bytes = downloaded.bytes)
+            } catch (t: Throwable) {
+                deleteQuietly(uri)
+                lastError = t
+                if (!isRetryable(t) || attempt == MAX_ATTEMPTS - 1) break
+                Log.w(
+                    TAG,
+                    "download attempt ${attempt + 1} failed for ${target.displayName}: " +
+                        "${t.message}; retrying",
                 )
+                sleepBackoff(attempt)
             }
-            if (downloaded.bytes <= 0L) throw IllegalStateException("empty response body")
-            val finalTarget = correctContainer(uri, target, item, downloaded.header)
-            publish(uri)
-            Log.i(TAG, "saved ${finalTarget.displayName} (${downloaded.bytes}B) -> $uri")
-            SavedFile(uri = uri, bytes = downloaded.bytes)
-        } catch (t: Throwable) {
-            Log.w(TAG, "download failed for ${target.displayName}: ${t.message}")
-            deleteQuietly(uri)
-            null
         }
+        Log.w(TAG, "download failed for ${target.displayName}: ${lastError?.message}")
+        return null
     }
 
     // --------------------------------------------------------------- dash mux
@@ -232,8 +243,24 @@ class MediaSaver(context: Context) {
         file: File,
         referer: String,
         userAgent: String,
-    ): Long = FileOutputStream(file).use { out ->
-        downloadToStream(url, referer, userAgent, out).bytes
+    ): Long {
+        var lastError: Throwable? = null
+        for (attempt in 0 until MAX_ATTEMPTS) {
+            try {
+                return FileOutputStream(file).use { out ->
+                    downloadToStream(url, referer, userAgent, out).bytes
+                }
+            } catch (t: Throwable) {
+                lastError = t
+                if (!isRetryable(t) || attempt == MAX_ATTEMPTS - 1) throw t
+                Log.w(
+                    TAG,
+                    "track download attempt ${attempt + 1} failed: ${t.message}; retrying",
+                )
+                sleepBackoff(attempt)
+            }
+        }
+        throw lastError ?: java.io.IOException("download failed")
     }
 
     private fun downloadToStream(
@@ -252,10 +279,13 @@ class MediaSaver(context: Context) {
                 setRequestProperty("User-Agent", userAgent)
                 if (referer.isNotBlank()) setRequestProperty("Referer", referer)
                 setRequestProperty("Accept", "*/*")
+                // Avoid transparent gzip: it makes contentLengthLong disagree
+                // with the byte count and looks like a truncated body.
+                setRequestProperty("Accept-Encoding", "identity")
                 cookieFor(url)?.let { setRequestProperty("Cookie", it) }
             }
             val status = connection.responseCode
-            if (status !in 200..299) throw IllegalStateException("HTTP $status")
+            if (status !in 200..299) throw HttpStatusException(status)
             val expected = connection.contentLengthLong
             var total = 0L
             val header = ByteArray(HEADER_SIZE)
@@ -292,6 +322,27 @@ class MediaSaver(context: Context) {
         }
     }
 
+    private class HttpStatusException(val code: Int) : java.io.IOException("HTTP $code")
+
+    /** 5xx/429/408 and plain IO/timeout/truncated bodies are worth retrying. */
+    private fun isRetryable(t: Throwable): Boolean {
+        if (t is HttpStatusException) {
+            return t.code == 408 || t.code == 425 || t.code == 429 || t.code >= 500
+        }
+        if (t is java.io.IOException) return true
+        val message = t.message.orEmpty()
+        return message.contains("truncated", ignoreCase = true) ||
+            message.contains("empty response", ignoreCase = true)
+    }
+
+    private fun sleepBackoff(attempt: Int) {
+        try {
+            Thread.sleep((attempt + 1) * 500L)
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+        }
+    }
+
     private fun readHeader(file: File): ByteArray {
         val header = ByteArray(HEADER_SIZE)
         return try {
@@ -316,6 +367,7 @@ class MediaSaver(context: Context) {
         private const val READ_TIMEOUT_MS = 120_000
         private const val BUFFER_SIZE = 64 * 1024
         private const val HEADER_SIZE = 16
+        private const val MAX_ATTEMPTS = 3
         private const val DEFAULT_USER_AGENT =
             "Mozilla/5.0 (Linux; Android 14; Pixel 7) AppleWebKit/537.36 " +
                 "(KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"

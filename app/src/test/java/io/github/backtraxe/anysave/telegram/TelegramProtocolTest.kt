@@ -41,14 +41,15 @@ class TelegramProtocolTest {
             sourceUrl = "https://www.douyin.com/note/7630244974127660645",
         )
         assertEquals(
-            "Autumn in NewZealand\n\nTANG · https://www.douyin.com/note/7630244974127660645",
+            "Autumn in NewZealand\n\nTANG · https://www.douyin.com/note/7630244974127660645" +
+                "\n\n#TANG",
             caption,
         )
     }
 
     @Test
     fun `caption falls back gracefully when fields are empty`() {
-        assertEquals("TANG", TelegramProtocol.buildCaption("", "TANG", ""))
+        assertEquals("TANG\n\n#TANG", TelegramProtocol.buildCaption("", "TANG", ""))
         assertEquals("https://example.com", TelegramProtocol.buildCaption("", "", "https://example.com"))
         assertEquals("", TelegramProtocol.buildCaption("", "", ""))
     }
@@ -57,8 +58,22 @@ class TelegramProtocolTest {
     fun `caption is trimmed to the bot api limit`() {
         val caption = TelegramProtocol.buildCaption("x".repeat(5000), "TANG", "https://e.x")
         assertTrue(caption.length <= TelegramProtocol.MAX_CAPTION_LENGTH)
-        assertTrue(caption.endsWith("…"))
         assertTrue(caption.startsWith("xxx"))
+        assertTrue(caption.contains("…"))
+        assertTrue(caption.endsWith("#TANG"))
+    }
+
+    @Test
+    fun `caption adds author and platform hashtags`() {
+        val caption = TelegramProtocol.buildCaption(
+            desc = "hello",
+            author = "Some Author",
+            sourceUrl = "https://www.xiaohongshu.com/explore/x",
+            platform = "小红书",
+        )
+        assertTrue(caption.contains("#SomeAuthor"))
+        assertTrue(caption.contains("#小红书"))
+        assertTrue(caption.length <= TelegramProtocol.MAX_CAPTION_LENGTH)
     }
 
     @Test
@@ -71,8 +86,12 @@ class TelegramProtocolTest {
         val ten = (1..10).map { photo("p$it") }
         assertEquals(listOf(10), TelegramProtocol.group(ten).map { it.size })
 
+        // No trailing 1-item album: 11 -> 9+2 (Telegram can't album one item).
         val eleven = (1..11).map { photo("p$it") }
-        assertEquals(listOf(10, 1), TelegramProtocol.group(eleven).map { it.size })
+        assertEquals(listOf(9, 2), TelegramProtocol.group(eleven).map { it.size })
+
+        val twentyOne = (1..21).map { photo("p$it") }
+        assertEquals(listOf(10, 9, 2), TelegramProtocol.group(twentyOne).map { it.size })
 
         val twentyThree = (1..23).map { photo("p$it") }
         assertEquals(listOf(10, 10, 3), TelegramProtocol.group(twentyThree).map { it.size })

@@ -830,3 +830,41 @@ daemon `127.0.0.1:10086`）在用户真实浏览器里读取会话，再用 debu
 
 - 有效 xhslink 分享码的完整成功下载（待真实链接复测）
 - 短链跳转到非 www 域名（如 m.xiaohongshu.com）的情况（当前按桌面 UA 预期落 www）
+
+## 实验 AI：下载重试 + Telegram 相册/标签（M28）
+
+### 1) Telegram 相册（真实微博 3 图）
+- mock Bot 注入「首个 sendMediaGroup 400」；
+- App 日志：`group 1/1 failed: Bad Request: mock rejection` → `group 1/1 sent on retry`
+  → `finished uploaded=3 failed=0`；
+- mock 侧只收到 2 个 `sendMediaGroup`（1 失败 + 1 成功，media_count=3），**没有 sendPhoto 单张消息**。
+- caption 实测：
+  `…杨伊琳10 · https://m.weibo.cn/status/RnMJ9E9RR?jumpfrom=weibocom` +
+  `#杨伊琳10 #微博`（作者 tag + 平台 tag，与描述/链接同一 caption）。
+
+### 2) 分组重平衡
+- 单测：11 张 → `[9,2]`，21 张 → `[10,9,2]`；避免尾部 1 项退化成「单张一条消息」。
+
+### 3) 下载失败重试
+- MediaSaver 对 5xx/429/408、IO 超时、截断响应做最多 3 次尝试（500ms/1000ms 退避）；
+- DASH 视频轨/音频轨分别重试；主 URL 失败继续走 fallback URL；
+- 本次真实保存 3 张微博图片 `saved=3 failed=0`（未做故障注入，重试路径为代码级验证）。
+
+### 4) 大图压缩
+- 超过 Telegram 10MB photo 限制的图片会解码 → 最长边 ≤2560 → JPEG 质量 92..50 循环，
+  仍超限再按 3/4 缩放；压缩后仍走相册而不是被丢弃（未做真实 >10MB 图端到端）。
+
+## 实现结论（M28 追加）
+
+78. 相册发送失败先重试整组：Bot API 的 sendMediaGroup 是原子的，重试不会产生半组重复；
+    重试仍失败才降级单张，兼顾「尽量组合」与「不丢图」。
+79. 分组要主动避免尾部 1 项（11 → 9+2），否则用户会看到「一张图单独一条消息」。
+80. 作者/平台 tag 放在 caption 末尾，并在截断时优先保留（只截描述，不截 tag）。
+81. 下载侧的抗抖动（重试 + fallback + DASH 双轨独立重试）比让用户手动重试更省事；
+    大图先压缩再上传，避免被 10MB 限制静默丢弃。
+
+## 未验证项（M28 追加）
+
+- 下载重试的真实故障注入（本次仅代码级；真实保存 3/3 成功）
+- >10MB 图片压缩后的 Telegram 端到端（压缩逻辑已实现，未构造真实大图）
+- 11 张真实相册的分组外观（单测覆盖分组大小）

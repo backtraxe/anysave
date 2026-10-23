@@ -44,21 +44,59 @@ object TelegramProtocol {
      * Caption shared by a post: description first, then author and source link.
      * Trimmed to the Bot API limit.
      */
-    fun buildCaption(desc: String, author: String, sourceUrl: String): String {
+    fun buildCaption(
+        desc: String,
+        author: String,
+        sourceUrl: String,
+        platform: String = "",
+    ): String {
         val footer = listOf(author.trim(), sourceUrl.trim())
             .filter { it.isNotEmpty() }
             .joinToString(" · ")
-        val body = listOf(desc.trim(), footer)
+        val tags = listOf(hashtag(author), hashtag(platform))
+            .filter { it.isNotEmpty() }
+            .distinct()
+            .joinToString(" ")
+        val descText = desc.trim()
+        val combined = listOf(descText, footer, tags)
             .filter { it.isNotEmpty() }
             .joinToString("\n\n")
-        if (body.length <= MAX_CAPTION_LENGTH) return body
-        return body.take(MAX_CAPTION_LENGTH - 1).trimEnd() + "…"
+        if (combined.length <= MAX_CAPTION_LENGTH) return combined
+
+        // Trim the description, never the author/platform tags.
+        val tail = listOf(footer, tags).filter { it.isNotEmpty() }.joinToString("\n\n")
+        val separator = if (tail.isEmpty()) "" else "\n\n"
+        val available = (MAX_CAPTION_LENGTH - tail.length - separator.length - 1).coerceAtLeast(0)
+        val short = descText.take(available).trimEnd()
+        val body = when {
+            short.isEmpty() -> tail
+            tail.isEmpty() -> short + "…"
+            else -> "$short…$separator$tail"
+        }
+        return body.take(MAX_CAPTION_LENGTH)
+    }
+
+    /** Telegram hashtags allow letters/digits/underscore; spaces would break them. */
+    private fun hashtag(raw: String): String {
+        val cleaned = raw.trim().filter { it.isLetterOrDigit() || it == '_' }
+        return if (cleaned.isEmpty()) "" else "#" + cleaned.take(64)
     }
 
     /** Albums are capped at 10 items by the Bot API; larger posts become several albums. */
     fun group(attachments: List<Attachment>): List<List<Attachment>> {
         if (attachments.isEmpty()) return emptyList()
-        return attachments.chunked(MAX_ITEMS_PER_GROUP)
+        val chunks = attachments.chunked(MAX_ITEMS_PER_GROUP)
+            .map { it.toMutableList() }
+            .toMutableList()
+        // A trailing 1-item "album" would arrive as a lonely single message;
+        // rebalance with the previous album (11 -> 9+2, 21 -> 10+9+2).
+        if (chunks.size > 1 && chunks.last().size == 1) {
+            val last = chunks.removeAt(chunks.lastIndex)
+            val moved = chunks.last().removeAt(chunks.last().lastIndex)
+            last.add(0, moved)
+            chunks.add(last)
+        }
+        return chunks
     }
 
     /** JSON `media` field for sendMediaGroup: attach://fileN references the parts. */

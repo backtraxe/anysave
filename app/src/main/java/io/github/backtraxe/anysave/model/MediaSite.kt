@@ -36,6 +36,17 @@ enum class MediaSite(
     ACFUN("acfun", "https://www.acfun.cn/"),
     ;
 
+    /** Human/store label used for Telegram platform tags and error copy. */
+    val displayName: String
+        get() = when (this) {
+            DOUYIN -> "抖音"
+            XIAOHONGSHU -> "小红书"
+            BILIBILI -> "Bilibili"
+            YOUTUBE -> "YouTube"
+            WEIBO -> "微博"
+            ACFUN -> "AcFun"
+        }
+
     companion object {
         fun forPageUrl(url: String): MediaSite = when {
             url.contains("xiaohongshu.com") -> XIAOHONGSHU

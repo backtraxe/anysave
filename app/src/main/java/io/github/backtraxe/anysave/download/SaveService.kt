@@ -17,6 +17,7 @@ import io.github.backtraxe.anysave.R
 import io.github.backtraxe.anysave.model.MediaItem
 import io.github.backtraxe.anysave.model.PostMedia
 import io.github.backtraxe.anysave.model.SaveState
+import io.github.backtraxe.anysave.telegram.PhotoCompressor
 import io.github.backtraxe.anysave.telegram.TelegramClient
 import io.github.backtraxe.anysave.telegram.TelegramConfig
 import io.github.backtraxe.anysave.telegram.TelegramProtocol
@@ -186,7 +187,12 @@ class SaveService : Service() {
         Log.i(TAG, "telegram: start upload: ${uploadable.size} item(s)")
 
         val client = TelegramClient(TelegramSettings.apiBase(this))
-        val caption = TelegramProtocol.buildCaption(post.desc, post.author, post.sourceUrl)
+        val caption = TelegramProtocol.buildCaption(
+            post.desc,
+            post.author,
+            post.sourceUrl,
+            post.site.displayName,
+        )
         val summary = client.uploadMedia(
             token = config.botToken,
             chatId = config.chatId,
@@ -230,10 +236,27 @@ class SaveService : Service() {
             val target = MediaNaming.target(post, entry.item)
             val bytes = contentResolver.openInputStream(entry.uri)?.use { it.readBytes() }
                 ?: return null
+            var payload = bytes
+            var fileName = target.displayName
+            var mimeType = target.mimeType
+            if (!target.isVideo && payload.size.toLong() > TelegramProtocol.MAX_PHOTO_BYTES) {
+                val compressed = PhotoCompressor.compressToJpeg(
+                    payload,
+                    TelegramProtocol.MAX_PHOTO_BYTES,
+                )
+                if (compressed == null) {
+                    Log.w(TAG, "telegram: cannot compress oversized photo $fileName")
+                    return null
+                }
+                Log.i(TAG, "telegram: compressed $fileName ${payload.size} -> ${compressed.size} B")
+                payload = compressed
+                fileName = fileName.substringBeforeLast('.', fileName) + ".jpg"
+                mimeType = "image/jpeg"
+            }
             TelegramClient.UploadAttachment(
-                fileName = target.displayName,
-                mimeType = target.mimeType,
-                bytes = bytes,
+                fileName = fileName,
+                mimeType = mimeType,
+                bytes = payload,
                 isVideo = target.isVideo,
             )
         } catch (t: Throwable) {
